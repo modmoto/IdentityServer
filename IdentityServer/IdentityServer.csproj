@@ -12,14 +12,5 @@
     <PackageReference Include="Serilog.AspNetCore" Version="4.1.0" />
   </ItemGroup>
   
-  <ItemGroup>
-    <_ContentIncludedByDefault Remove="Views\Grants\Index.cshtml" />
-    <_ContentIncludedByDefault Remove="Views\Device\Success.cshtml" />
-    <_ContentIncludedByDefault Remove="Views\Device\UserCodeCapture.cshtml" />
-    <_ContentIncludedByDefault Remove="Views\Device\UserCodeConfirmation.cshtml" />
-    <_ContentIncludedByDefault Remove="Views\Consent\Index.cshtml" />
-    <_ContentIncludedByDefault Remove="Views\Diagnostics\Index.cshtml" />
-  </ItemGroup>
-  
   <ProjectExtensions><VisualStudio><UserProperties properties_4launchsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>
 </Project>

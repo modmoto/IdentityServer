@@ -14,25 +14,18 @@ namespace IdentityServer.Quickstart.Home
     {
         private readonly IIdentityServerInteractionService _interaction;
         private readonly IWebHostEnvironment _environment;
-        private readonly ILogger _logger;
 
-        public HomeController(IIdentityServerInteractionService interaction, IWebHostEnvironment environment, ILogger<HomeController> logger)
+        public HomeController(
+            IIdentityServerInteractionService interaction,
+            IWebHostEnvironment environment)
         {
             _interaction = interaction;
             _environment = environment;
-            _logger = logger;
         }
 
         public IActionResult Index()
         {
-            if (_environment.IsDevelopment())
-            {
-                // only show in development
-                return View();
-            }
-
-            _logger.LogInformation("Homepage is disabled in production. Returning 404.");
-            return NotFound();
+            return View();
         }
 
         /// <summary>
