@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdentityServer", "IdentityServer\IdentityServer.csproj", "{88A8058C-7B8E-488C-AE76-730153F38119}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{016869F6-833D-4089-AB72-B69D095D60D1}"
+ProjectSection(SolutionItems) = preProject
+	.dockerignore = .dockerignore
+	.gitignore = .gitignore
+	build-pipeline.yml = build-pipeline.yml
+	docker-compose.token.yml = docker-compose.token.yml
+	Dockerfile = Dockerfile
+	release-pipeline.yml = release-pipeline.yml
+EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{88A8058C-7B8E-488C-AE76-730153F38119}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88A8058C-7B8E-488C-AE76-730153F38119}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88A8058C-7B8E-488C-AE76-730153F38119}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88A8058C-7B8E-488C-AE76-730153F38119}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

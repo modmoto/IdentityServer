@@ -1,0 +1,47 @@
+trigger:
+  - none
+
+pool:
+  vmImage: "ubuntu-20.04"
+  
+resources:
+  pipelines:
+    - pipeline: fading-flame
+      source: fading-flame.build
+      trigger:
+        branches:
+          - master
+
+jobs:
+  - deployment: Deploy
+    displayName: Test
+    environment: dev
+    variables:
+      CONTAINER_SUFFIX: 'dev'
+      MONGO_CONNECTION_STRING: 'mongodb://157.90.1.251:3513'
+      DB_PORT: '4011'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - download: fading-flame.build
+              artifact: drop
+              
+            - task: CopyFilesOverSSH@0
+              displayName: 'Copy compose file'
+              inputs:
+                sshEndpoint: HetziPrivate
+                sourceFolder: '$(System.DefaultWorkingDirectory)'
+                targetFolder: '/usr/local/release-compose-files/fading-flame/test'
+                flattenFolders: true
+                
+            - task: SSH@0
+              displayName: 'Run shell inline on remote machine'
+              inputs:
+                sshEndpoint: HetziPrivate
+                runOptions: inline
+                inline: |
+                  cd /usr/local/release-compose-files/fading-flame/test
+                  MONGO_CONNECTION_STRING=$(MONGO_CONNECTION_STRING) docker-compose -p $(Release.DefinitionName)-$(CONTAINER_SUFFIX) pull 
+                  MONGO_CONNECTION_STRING=$(MONGO_CONNECTION_STRING) docker-compose -p $(Release.DefinitionName)-$(CONTAINER_SUFFIX) up -d 
+                failOnStdErr: false  
