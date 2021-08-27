@@ -273,7 +273,7 @@ namespace IdentityServer.Quickstart.Account
                 return SignOut(new AuthenticationProperties { RedirectUri = url }, vm.ExternalAuthenticationScheme);
             }
 
-            return Redirect(vm.PostLogoutRedirectUri);
+            return Redirect(vm.PostLogoutRedirectUri ?? "/");
         }
 
         [HttpGet]
