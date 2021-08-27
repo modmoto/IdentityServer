@@ -4,6 +4,8 @@
     var version = typeof(Duende.IdentityServer.Hosting.IdentityServerMiddleware).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+').First();
 }
 
+<partial name="_Nav" />
+
 <div class="welcome-page">
     <h1>
         <img src="~/duende-logo.svg" class="logo">
@@ -19,11 +21,6 @@
         </li>
         <li>
             Click <a href="~/diagnostics">here</a> to see the claims for your current session.
-        </li>
-        <li>
-            Here are links to the
-            <a href="https://github.com/duendesoftware/IdentityServer">source code repository</a>,
-            and <a href="https://github.com/duendesoftware/samples">ready to use samples</a>.
         </li>
     </ul>
 </div>
