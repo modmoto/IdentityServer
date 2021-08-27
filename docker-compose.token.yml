@@ -1,18 +1,19 @@
 ﻿version: '3.9'
 services:
-  fading-flame:
-    image: modmoto/fading-flame:${TAG}
-    container_name: fading-flame-${CONTAINER_SUFFIX}
+  identity-server:
+    image: modmoto/identity-server:${TAG}
+    container_name: identity-server-${CONTAINER_SUFFIX}
     restart: unless-stopped
     expose:
       - 80
     environment:
       - MONGO_DB_CONNECTION_STRING=${MONGO_DB_CONNECTION_STRING}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - FADING_FLAME_SECRET=${FADING_FLAME_SECRET}
   
   mongo-db:
     image: mongo
-    container_name: mongo-db-fading-flame-${CONTAINER_SUFFIX}
+    container_name: mongo-db-identity-server-${CONTAINER_SUFFIX}
     restart: unless-stopped
     ports:
       - ${DB_PORT}:27017
@@ -21,7 +22,7 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=${DB_SECRET}
     volumes:
-      - mongo-db-fading-flame:/data/db
+      - mongo-db-identity-server:/data/db
 
 networks:
   default:
@@ -29,5 +30,5 @@ networks:
       name: caddy
 
 volumes:
-  mongo-db-fading-flame:
-    name: mongo-db-fading-flame-${CONTAINER_SUFFIX}
+  mongo-db-identity-server:
+    name: mongo-db-identity-server-${CONTAINER_SUFFIX}

@@ -42,7 +42,7 @@ steps:
   - task: Docker@2
     inputs:
       containerRegistry: 'official-docker-modmoto'
-      repository: 'modmoto/fading-flame'
+      repository: 'modmoto/identity-server'
       command: 'buildAndPush'
       Dockerfile: '**/Dockerfile'
       buildContext: '.'
