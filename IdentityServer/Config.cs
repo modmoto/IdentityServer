@@ -1,4 +1,5 @@
-﻿using Duende.IdentityServer.Models;
+﻿using System;
+using Duende.IdentityServer.Models;
 using System.Collections.Generic;
 using Duende.IdentityServer;
 
@@ -23,8 +24,8 @@ namespace IdentityServer
             {
                 new Client
                 {
-                    ClientId = "mvc",
-                    ClientSecrets = { new Secret("secret".Sha256()) },
+                    ClientId = "fading-flame",
+                    ClientSecrets = { new Secret(Environment.GetEnvironmentVariable("FADING_FLAME_SECRET").Sha256()) },
 
                     AllowedGrantTypes = GrantTypes.Code,
             
