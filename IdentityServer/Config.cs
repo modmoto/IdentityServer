@@ -29,8 +29,8 @@ namespace IdentityServer
 
                     AllowedGrantTypes = GrantTypes.Code,
             
-                    RedirectUris = { $"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/signin-oidc" },
-                    PostLogoutRedirectUris = { $"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/signout-callback-oidc" },
+                    RedirectUris = { "https://localhost:5000/signin-oidc", $"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/signin-oidc" },
+                    PostLogoutRedirectUris = { "https://localhost:5000/signout-callback-oid", $"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/signout-callback-oidc" },
 
                     AllowedScopes = new List<string>
                     {
