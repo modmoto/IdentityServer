@@ -4,7 +4,7 @@
 
 using System.ComponentModel.DataAnnotations;
 
-namespace IdentityServerHost.Quickstart.UI
+namespace IdentityServer.Quickstart.Account
 {
     public class RegisterInputModel
     {

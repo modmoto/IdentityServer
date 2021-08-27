@@ -1,10 +1,6 @@
-// Copyright (c) Duende Software. All rights reserved.
-// See LICENSE in the project root for license information.
-
-
 using Duende.IdentityServer.Models;
 
-namespace IdentityServerHost.Quickstart.UI
+namespace IdentityServer.Quickstart.Home
 {
     public class ErrorViewModel
     {

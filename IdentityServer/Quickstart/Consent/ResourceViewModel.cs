@@ -2,7 +2,7 @@
 // See LICENSE in the project root for license information.
 
 
-namespace IdentityServerHost.Quickstart.UI
+namespace IdentityServer.Quickstart.Consent
 {
     public class ResourceViewModel
     {

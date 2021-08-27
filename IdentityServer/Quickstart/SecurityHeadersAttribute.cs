@@ -1,11 +1,7 @@
-// Copyright (c) Duende Software. All rights reserved.
-// See LICENSE in the project root for license information.
-
-
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace IdentityServerHost.Quickstart.UI
+namespace IdentityServer.Quickstart
 {
     public class SecurityHeadersAttribute : ActionFilterAttribute
     {

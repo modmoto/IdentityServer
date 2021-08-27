@@ -4,7 +4,7 @@
 
 using Duende.IdentityServer.Models;
 
-namespace IdentityServerHost.Quickstart.UI
+namespace IdentityServer.Quickstart.Consent
 {
     public class ProcessConsentResult
     {
