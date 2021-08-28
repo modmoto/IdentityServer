@@ -1,4 +1,5 @@
-﻿using IdentityServer.Quickstart;
+﻿using System;
+using IdentityServer.Quickstart;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,11 +9,11 @@ namespace IdentityServer
 {
     public class Startup
     {
-        public IWebHostEnvironment Environment { get; }
+        public IWebHostEnvironment WebEnvironment { get; }
 
-        public Startup(IWebHostEnvironment environment)
+        public Startup(IWebHostEnvironment webEnvironment)
         {
-            Environment = environment;
+            WebEnvironment = webEnvironment;
         }
 
         public void ConfigureServices(IServiceCollection services)
@@ -20,9 +21,10 @@ namespace IdentityServer
             services.AddControllersWithViews();
             
             services.AddIdentityServer(options =>
-            {
-                options.EmitStaticAudienceClaim = true;
-            })
+                {
+                    options.IssuerUri = $"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}";
+                    options.EmitStaticAudienceClaim = true;
+                })
                 .AddInMemoryIdentityResources(Config.IdentityResources)
                 .AddInMemoryApiScopes(Config.ApiScopes)
                 .AddTestUsers(TestUsers.Users)
@@ -40,7 +42,7 @@ namespace IdentityServer
 
         public void Configure(IApplicationBuilder app)
         {
-            if (Environment.IsDevelopment())
+            if (WebEnvironment.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
