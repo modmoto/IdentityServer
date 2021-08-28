@@ -1,9 +1,11 @@
 ﻿using System;
 using IdentityServer.Quickstart;
+using IdentityServer.Quickstart.Account;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MongoDB.Driver;
 
 namespace IdentityServer
 {
@@ -26,8 +28,15 @@ namespace IdentityServer
                 })
                 .AddInMemoryIdentityResources(Config.IdentityResources)
                 .AddInMemoryApiScopes(Config.ApiScopes)
-                .AddTestUsers(TestUsers.Users)
                 .AddInMemoryClients(Config.Clients);
+            
+            services.AddTransient<UserStore>();
+            services.AddTransient<UserAccountRepository>();
+            services.AddSingleton(_ =>
+            {
+                var mongoConnectionString = Environment.GetEnvironmentVariable("MONGO_DB_CONNECTION_STRING");
+                return new MongoClient(mongoConnectionString);
+            });
             
             // services.AddAuthentication()
             //     .AddGoogle("Google", options =>
@@ -55,7 +64,6 @@ namespace IdentityServer
                 context.Request.Scheme = "https";
                 return next();
             });
-            
             app.UseIdentityServer();
             app.UseAuthorization();
             

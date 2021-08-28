@@ -14,5 +14,6 @@ namespace IdentityServer.Quickstart.Account
 
         public bool IsExternalLoginOnly => EnableLocalLogin == false && ExternalProviders?.Count() == 1;
         public string ExternalLoginScheme => IsExternalLoginOnly ? ExternalProviders?.SingleOrDefault()?.AuthenticationScheme : null;
+        public bool IsRegisterFlow { get; set; }
     }
 }

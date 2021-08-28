@@ -25,7 +25,7 @@ namespace IdentityServer.Quickstart.Account
     [AllowAnonymous]
     public class AccountController : Controller
     {
-        private readonly TestUserStore _users;
+        private readonly UserStore _userStore;
         private readonly IIdentityServerInteractionService _interaction;
         private readonly IClientStore _clientStore;
         private readonly IAuthenticationSchemeProvider _schemeProvider;
@@ -38,16 +38,14 @@ namespace IdentityServer.Quickstart.Account
             IAuthenticationSchemeProvider schemeProvider,
             IIdentityProviderStore identityProviderStore,
             IEventService events,
-            TestUserStore users = null)
+            UserStore userStore)
         {
-            // this is where you would plug in your own custom identity management library (e.g. ASP.NET Identity)
-            _users = users ?? throw new Exception("Please call 'AddTestUsers(TestUsers.Users)' on the IIdentityServerBuilder in Startup or remove the TestUserStore from the AccountController.");
-
             _interaction = interaction;
             _clientStore = clientStore;
             _schemeProvider = schemeProvider;
             _identityProviderStore = identityProviderStore;
             _events = events;
+            _userStore = userStore;
         }
 
         /// <summary>
@@ -73,62 +71,32 @@ namespace IdentityServer.Quickstart.Account
         /// </summary>
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(RegisterInputModel model, string button)
-        {
-            var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
-            if (button != "register")
-            {
-                if (context != null)
-                {
-                    // if the user cancels, send a result back into IdentityServer as if they 
-                    // denied the consent (even if this client does not require consent).
-                    // this will send back an access denied OIDC error response to the client.
-                    await _interaction.DenyAuthorizationAsync(context, AuthorizationError.AccessDenied);
-
-                    // we can trust model.ReturnUrl since GetAuthorizationContextAsync returned non-null
-                    if (context.IsNativeClient())
-                    {
-                        // The client is native, so this change in how to
-                        // return the response is for better UX for the end user.
-                        return this.LoadingPage("Redirect", model.ReturnUrl);
-                    }
-
-                    return Redirect(model.ReturnUrl);
-                }
-                else
-                {
-                    // since we don't have a valid context, then we just go back to the home page
-                    return Redirect("~/");
-                }
-            }
-            
-            if (ModelState.IsValid)
-            {
-                // todo generate user
-            }
-
-            var vm = await BuildLoginViewModelAsync(new LoginInputModel
-            {
-                Email = model.Email,
-                Password = model.Password,
-                ReturnUrl = model.ReturnUrl
-            });
-            return View(vm);
-            
-        }
-
-        /// <summary>
-        /// Handle postback from username/password login
-        /// </summary>
-        [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginInputModel model, string button)
         {
             // check if we are in the context of an authorization request
             var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
 
+            if (button == "register")
+            {
+                var viewModelAsync = await BuildLoginViewModelAsync(model);
+                viewModelAsync.IsRegisterFlow = true;
+                return View(viewModelAsync);
+            }
+            
+            if (button == "register-for-real" && ModelState.IsValid)
+            {
+                var account = new UserAccount
+                {
+                    Password = model.Password,
+                    UserEmail = model.Email,
+                    UserName = model.Name
+                };
+                await _userStore.CreateUser(account);
+                return Redirect(model.ReturnUrl);
+            }
+
             // the user clicked the "cancel" button
-            if (button != "login")
+            if (button == "cancel")
             {
                 if (context != null)
                 {
@@ -147,22 +115,16 @@ namespace IdentityServer.Quickstart.Account
 
                     return Redirect(model.ReturnUrl);
                 }
-                else
-                {
-                    // since we don't have a valid context, then we just go back to the home page
-                    return Redirect("~/");
-                }
-                
-                
+
+                return Redirect("~/");
             }
 
-            if (ModelState.IsValid)
+            if (button == "login")
             {
-                // validate username/password against in-memory store
-                if (_users.ValidateCredentials(model.Email, model.Password))
+                if (await _userStore.ValidateCredentials(model.Email, model.Password))
                 {
-                    var user = _users.FindByUsername(model.Email);
-                    await _events.RaiseAsync(new UserLoginSuccessEvent(user.Username, user.SubjectId, user.Username, clientId: context?.Client.ClientId));
+                    var user = await _userStore.FindByUserEmail(model.Email);
+                    await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserEmail, user.SubjectId.ToString(), user.UserName, clientId: context?.Client.ClientId));
 
                     // only set explicit expiration here if user chooses "remember me". 
                     // otherwise we rely upon expiration configured in cookie middleware.
@@ -177,9 +139,9 @@ namespace IdentityServer.Quickstart.Account
                     };
 
                     // issue authentication cookie with subject ID and username
-                    var isuser = new IdentityServerUser(user.SubjectId)
+                    var isuser = new IdentityServerUser(user.SubjectId.ToString())
                     {
-                        DisplayName = user.Username
+                        DisplayName = user.UserName
                     };
 
                     await HttpContext.SignInAsync(isuser, props);
@@ -291,7 +253,7 @@ namespace IdentityServer.Quickstart.Account
             var context = await _interaction.GetAuthorizationContextAsync(returnUrl);
             if (context?.IdP != null && await _schemeProvider.GetSchemeAsync(context.IdP) != null)
             {
-                var local = context.IdP == Duende.IdentityServer.IdentityServerConstants.LocalIdentityProvider;
+                var local = context.IdP == IdentityServerConstants.LocalIdentityProvider;
 
                 // this is meant to short circuit the UI and only trigger the one external IdP
                 var vm = new LoginViewModel
@@ -402,7 +364,7 @@ namespace IdentityServer.Quickstart.Account
             if (User?.Identity.IsAuthenticated == true)
             {
                 var idp = User.FindFirst(JwtClaimTypes.IdentityProvider)?.Value;
-                if (idp != null && idp != Duende.IdentityServer.IdentityServerConstants.LocalIdentityProvider)
+                if (idp != null && idp != IdentityServerConstants.LocalIdentityProvider)
                 {
                     var providerSupportsSignout = await HttpContext.GetSchemeSupportsSignOutAsync(idp);
                     if (providerSupportsSignout)
