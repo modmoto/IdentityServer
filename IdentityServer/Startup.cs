@@ -46,7 +46,8 @@ namespace IdentityServer
             {
                 app.UseDeveloperExceptionPage();
             }
-
+            
+            app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseRouting();
             
