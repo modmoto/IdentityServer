@@ -51,10 +51,6 @@ namespace IdentityServer
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
-                    webBuilder.UseKestrel(opts =>
-                    {
-                        opts.ListenAnyIP(443);
-                    });
                 });
     }
 }
