@@ -22,7 +22,6 @@ namespace IdentityServer
             
             services.AddIdentityServer(options =>
                 {
-                    options.IssuerUri = $"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}";
                     options.EmitStaticAudienceClaim = true;
                 })
                 .AddInMemoryIdentityResources(Config.IdentityResources)
