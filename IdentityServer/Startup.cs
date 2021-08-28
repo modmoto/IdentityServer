@@ -50,6 +50,13 @@ namespace IdentityServer
             app.UseStaticFiles();
             app.UseRouting();
             
+            // this is so caddy can forward to http and the openid config is fine
+            app.Use((context, next) =>
+            {
+                context.Request.Scheme = "https";
+                return next();
+            });
+            
             app.UseIdentityServer();
             app.UseAuthorization();
             
