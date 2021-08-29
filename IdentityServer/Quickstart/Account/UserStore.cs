@@ -18,10 +18,17 @@ namespace IdentityServer.Quickstart.Account
             return user.Password == password.Sha256();
         }
 
-        public Task CreateUser(UserAccount userAccount)
+        public async Task<bool> CreateUser(UserAccount userAccount)
         {
-            userAccount.Password = userAccount.Password.Sha256();
-            return _userAccountRepository.Insert(userAccount);
+            var user = await _userAccountRepository.FindByMail(userAccount.UserEmail);
+            if (user == null)
+            {
+                userAccount.Password = userAccount.Password.Sha256();
+                await _userAccountRepository.Insert(userAccount);
+                return true;
+            }
+
+            return false;
         }
 
         public Task<UserAccount> FindByUserEmail(string email)

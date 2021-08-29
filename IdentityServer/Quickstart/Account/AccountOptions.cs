@@ -12,5 +12,6 @@ namespace IdentityServer.Quickstart.Account
         public static bool AutomaticRedirectAfterSignOut = false;
 
         public static string InvalidCredentialsErrorMessage = "Invalid username or password";
+        public static string EmailAlreadyTaken = "User with that email already registered";
     }
 }

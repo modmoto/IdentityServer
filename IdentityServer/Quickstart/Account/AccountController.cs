@@ -94,8 +94,13 @@ namespace IdentityServer.Quickstart.Account
                         UserEmail = model.Email,
                         UserName = model.Name
                     };
-                    await _userStore.CreateUser(account);
-                    return Redirect(model.ReturnUrl);
+                    var wasCreated = await _userStore.CreateUser(account);
+                    if (wasCreated)
+                    {
+                        return Redirect(model.ReturnUrl);    
+                    }
+                 
+                    ModelState.AddModelError(string.Empty, AccountOptions.EmailAlreadyTaken);
                 }
 
                 var vm2 = await BuildLoginViewModelAsync(model);
