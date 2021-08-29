@@ -80,19 +80,28 @@ namespace IdentityServer.Quickstart.Account
             {
                 var viewModelAsync = await BuildLoginViewModelAsync(model);
                 viewModelAsync.IsRegisterFlow = true;
+                ModelState.Remove("Name");
                 return View(viewModelAsync);
             }
             
-            if (button == "register-for-real" && ModelState.IsValid)
+            if (button == "register-for-real")
             {
-                var account = new UserAccount
+                if (ModelState.IsValid)
                 {
-                    Password = model.Password,
-                    UserEmail = model.Email,
-                    UserName = model.Name
-                };
-                await _userStore.CreateUser(account);
-                return Redirect(model.ReturnUrl);
+                    var account = new UserAccount
+                    {
+                        Password = model.Password,
+                        UserEmail = model.Email,
+                        UserName = model.Name
+                    };
+                    await _userStore.CreateUser(account);
+                    return Redirect(model.ReturnUrl);
+                }
+
+                var vm2 = await BuildLoginViewModelAsync(model);
+                vm2.IsRegisterFlow = true;
+                return View(vm2);
+
             }
 
             // the user clicked the "cancel" button
@@ -124,7 +133,7 @@ namespace IdentityServer.Quickstart.Account
                 if (await _userStore.ValidateCredentials(model.Email, model.Password))
                 {
                     var user = await _userStore.FindByUserEmail(model.Email);
-                    await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserEmail, user.SubjectId.ToString(), user.UserEmail, clientId: context?.Client.ClientId));
+                    await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserEmail, user.UserEmail, user.UserEmail, clientId: context?.Client.ClientId));
 
                     // only set explicit expiration here if user chooses "remember me". 
                     // otherwise we rely upon expiration configured in cookie middleware.
@@ -139,7 +148,7 @@ namespace IdentityServer.Quickstart.Account
                     };
 
                     // issue authentication cookie with subject ID and username
-                    var isuser = new IdentityServerUser(user.SubjectId.ToString())
+                    var isuser = new IdentityServerUser(user.UserEmail)
                     {
                         DisplayName = user.UserEmail
                     };
@@ -175,6 +184,7 @@ namespace IdentityServer.Quickstart.Account
 
                 await _events.RaiseAsync(new UserLoginFailureEvent(model.Email, "invalid credentials", clientId:context?.Client.ClientId));
                 ModelState.AddModelError(string.Empty, AccountOptions.InvalidCredentialsErrorMessage);
+                ModelState.Remove("Name");
             }
 
             // something went wrong, show form with error
