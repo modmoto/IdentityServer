@@ -28,7 +28,8 @@ namespace IdentityServer
                 })
                 .AddInMemoryIdentityResources(Config.IdentityResources)
                 .AddInMemoryApiScopes(Config.ApiScopes)
-                .AddInMemoryClients(Config.Clients);
+                .AddInMemoryClients(Config.Clients)
+                .AddProfileService<ProfileService>();
             
             services.AddTransient<UserStore>();
             services.AddTransient<UserAccountRepository>();

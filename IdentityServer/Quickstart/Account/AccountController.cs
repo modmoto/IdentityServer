@@ -124,7 +124,7 @@ namespace IdentityServer.Quickstart.Account
                 if (await _userStore.ValidateCredentials(model.Email, model.Password))
                 {
                     var user = await _userStore.FindByUserEmail(model.Email);
-                    await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserEmail, user.SubjectId.ToString(), user.UserName, clientId: context?.Client.ClientId));
+                    await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserEmail, user.SubjectId.ToString(), user.UserEmail, clientId: context?.Client.ClientId));
 
                     // only set explicit expiration here if user chooses "remember me". 
                     // otherwise we rely upon expiration configured in cookie middleware.
@@ -141,7 +141,7 @@ namespace IdentityServer.Quickstart.Account
                     // issue authentication cookie with subject ID and username
                     var isuser = new IdentityServerUser(user.SubjectId.ToString())
                     {
-                        DisplayName = user.UserName
+                        DisplayName = user.UserEmail
                     };
 
                     await HttpContext.SignInAsync(isuser, props);
@@ -164,15 +164,13 @@ namespace IdentityServer.Quickstart.Account
                     {
                         return Redirect(model.ReturnUrl);
                     }
-                    else if (string.IsNullOrEmpty(model.ReturnUrl))
+
+                    if (string.IsNullOrEmpty(model.ReturnUrl))
                     {
                         return Redirect("~/");
                     }
-                    else
-                    {
-                        // user might have clicked on a malicious link - should be logged
-                        throw new Exception("invalid return URL");
-                    }
+                    
+                    throw new Exception("invalid return URL");
                 }
 
                 await _events.RaiseAsync(new UserLoginFailureEvent(model.Email, "invalid credentials", clientId:context?.Client.ClientId));
