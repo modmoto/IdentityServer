@@ -30,7 +30,7 @@ namespace IdentityServer
                     AllowedGrantTypes = GrantTypes.Code,
             
                     RedirectUris = { "https://localhost:5000/signin-oidc", "https://fading-flame.com/signin-oidc", "https://test.fading-flame.com/signin-oidc" },
-                    PostLogoutRedirectUris = { "https://localhost:5000/signout-callback-oid", "https://fading-flame.com/signout-callback-oidc" , "https://test.fading-flame.com/signout-callback-oidc" },
+                    PostLogoutRedirectUris = { "https://localhost:5000/signout-callback-oidc", "https://fading-flame.com/signout-callback-oidc" , "https://test.fading-flame.com/signout-callback-oidc" },
 
                     AllowedScopes = new List<string>
                     {
