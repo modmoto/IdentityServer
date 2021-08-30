@@ -28,7 +28,6 @@ namespace IdentityServer
                     ClientSecrets = { new Secret(Environment.GetEnvironmentVariable("FADING_FLAME_SECRET").Sha256()) },
 
                     AllowedGrantTypes = GrantTypes.Code,
-                    RequireClientSecret = false,
             
                     RedirectUris = { "https://localhost:5000/signin-oidc", "https://fading-flame.com/signin-oidc", "https://test.fading-flame.com/signin-oidc" },
                     PostLogoutRedirectUris = { "https://localhost:5000/signout-callback-oidc", "https://fading-flame.com/signout-callback-oidc" , "https://test.fading-flame.com/signout-callback-oidc" },

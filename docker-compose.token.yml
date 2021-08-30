@@ -8,6 +8,7 @@ services:
       - 80
     environment:
       - MONGO_DB_CONNECTION_STRING=${MONGO_DB_CONNECTION_STRING}
+      - FADING_FLAME_SECRET=${FADING_FLAME_SECRET}
       - IDENTITY_BASE_URI=${IDENTITY_BASE_URI}
   
   mongo-db:
