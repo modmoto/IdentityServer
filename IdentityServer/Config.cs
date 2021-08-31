@@ -35,7 +35,6 @@ namespace IdentityServer
                     AllowOfflineAccess = true,
                     RefreshTokenUsage = TokenUsage.ReUse,
                     RefreshTokenExpiration = TokenExpiration.Sliding,
-                    UpdateAccessTokenClaimsOnRefresh = true,
                     
                     AllowedScopes = new List<string>
                     {
