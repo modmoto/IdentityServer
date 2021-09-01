@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using AspNetCore.Identity.Mongo.Model;
 using Duende.IdentityServer;
 using Duende.IdentityServer.Events;
 using Duende.IdentityServer.Extensions;
@@ -11,6 +13,7 @@ using IdentityModel;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IdentityServer.Quickstart.Account
@@ -19,7 +22,8 @@ namespace IdentityServer.Quickstart.Account
     [AllowAnonymous]
     public class AccountController : Controller
     {
-        private readonly UserStore _userStore;
+        private readonly IUserStore<MongoUser> _userStore;
+        private readonly UserManager<MongoUser> _userManager;
         private readonly IIdentityServerInteractionService _interaction;
         private readonly IClientStore _clientStore;
         private readonly IAuthenticationSchemeProvider _schemeProvider;
@@ -32,7 +36,8 @@ namespace IdentityServer.Quickstart.Account
             IAuthenticationSchemeProvider schemeProvider,
             IIdentityProviderStore identityProviderStore,
             IEventService events,
-            UserStore userStore)
+            IUserStore<MongoUser> userStore, 
+            UserManager<MongoUser> userManager)
         {
             _interaction = interaction;
             _clientStore = clientStore;
@@ -40,6 +45,7 @@ namespace IdentityServer.Quickstart.Account
             _identityProviderStore = identityProviderStore;
             _events = events;
             _userStore = userStore;
+            _userManager = userManager;
         }
 
         [HttpGet]
@@ -68,7 +74,7 @@ namespace IdentityServer.Quickstart.Account
             {
                 var viewModelAsync = await BuildLoginViewModelAsync(model);
                 viewModelAsync.IsRegisterFlow = true;
-                ModelState.Remove("Name");
+                ModelState.Remove("Email");
                 return View(viewModelAsync);
             }
             
@@ -76,14 +82,14 @@ namespace IdentityServer.Quickstart.Account
             {
                 if (ModelState.IsValid)
                 {
-                    var account = new UserAccount
+                    var account = new MongoUser
                     {
-                        Password = model.Password,
-                        UserEmail = model.Email,
-                        UserName = model.Name
+                        UserName = model.Name,
+                        Email = model.Email
                     };
-                    var wasCreated = await _userStore.CreateUser(account);
-                    if (wasCreated)
+                    var result = await _userManager.CreateAsync(account, model.Password);
+                    
+                    if (result.Succeeded)
                     {
                         return await LoginUser(model, account, context);
                     }
@@ -99,25 +105,26 @@ namespace IdentityServer.Quickstart.Account
 
             if (button == "login")
             {
-                if (await _userStore.ValidateCredentials(model.Email, model.Password))
+                var user = await _userStore.FindByNameAsync(model.Name, CancellationToken.None);
+                var identityResult = await _userManager.CheckPasswordAsync(user, model.Password);
+                
+                if (identityResult)
                 {
-                    var user = await _userStore.FindByUserEmail(model.Email);
                     return await LoginUser(model, user, context);
                 }
 
-                await _events.RaiseAsync(new UserLoginFailureEvent(model.Email, "invalid credentials", clientId:context?.Client.ClientId));
+                await _events.RaiseAsync(new UserLoginFailureEvent(model.Name, "invalid credentials", clientId:context?.Client.ClientId));
                 ModelState.AddModelError(string.Empty, AccountOptions.InvalidCredentialsErrorMessage);
-                ModelState.Remove("Name");
+                ModelState.Remove("Email");
             }
 
             var vm = await BuildLoginViewModelAsync(model);
             return View(vm);
         }
 
-        private async Task<IActionResult> LoginUser(LoginInputModel model, UserAccount user, AuthorizationRequest context)
+        private async Task<IActionResult> LoginUser(LoginInputModel model, MongoUser user, AuthorizationRequest context)
         {
-            await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserEmail, user.UserEmail, user.UserEmail,
-                clientId: context?.Client.ClientId));
+            await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserName, user.Id.ToString(), user.UserName, clientId: context?.Client.ClientId));
 
             // only set explicit expiration here if user chooses "remember me". 
             // otherwise we rely upon expiration configured in cookie middleware.
@@ -131,12 +138,10 @@ namespace IdentityServer.Quickstart.Account
                 };
             }
 
-            ;
-
             // issue authentication cookie with subject ID and username
-            var isuser = new IdentityServerUser(user.UserEmail)
+            var isuser = new IdentityServerUser(user.Id.ToString())
             {
-                DisplayName = user.UserEmail
+                DisplayName = user.UserName
             };
 
             await HttpContext.SignInAsync(isuser, props);
@@ -233,7 +238,6 @@ namespace IdentityServer.Quickstart.Account
                 {
                     EnableLocalLogin = local,
                     ReturnUrl = returnUrl,
-                    Email = context?.LoginHint,
                 };
 
                 if (!local)
@@ -283,7 +287,6 @@ namespace IdentityServer.Quickstart.Account
                 AllowRememberLogin = AccountOptions.AllowRememberLogin,
                 EnableLocalLogin = allowLocal && AccountOptions.AllowLocalLogin,
                 ReturnUrl = returnUrl,
-                Email = context?.LoginHint,
                 ExternalProviders = providers.ToArray()
             };
         }
@@ -291,7 +294,6 @@ namespace IdentityServer.Quickstart.Account
         private async Task<LoginViewModel> BuildLoginViewModelAsync(LoginInputModel model)
         {
             var vm = await BuildLoginViewModelAsync(model.ReturnUrl);
-            vm.Email = model.Email;
             vm.RememberLogin = model.RememberLogin;
             return vm;
         }

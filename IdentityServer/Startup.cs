@@ -1,10 +1,11 @@
 ﻿using System;
-using IdentityServer.Quickstart;
-using IdentityServer.Quickstart.Account;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using AspNetCore.Identity.Mongo;
+using AspNetCore.Identity.Mongo.Model;
+using Microsoft.AspNetCore.Identity;
 using MongoDB.Driver;
 
 namespace IdentityServer
@@ -21,7 +22,24 @@ namespace IdentityServer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
-            
+
+            services.AddIdentityMongoDbProvider<MongoUser, MongoRole>(identityOptions =>
+            {
+                identityOptions.Password.RequiredLength = 6;
+                identityOptions.Password.RequireLowercase = true;
+                identityOptions.Password.RequireUppercase = true;
+                identityOptions.Password.RequireNonAlphanumeric = false;
+                identityOptions.Password.RequireDigit = true;
+
+                identityOptions.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+                identityOptions.Lockout.MaxFailedAccessAttempts = 5;
+                identityOptions.Lockout.AllowedForNewUsers = true;
+
+                identityOptions.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+            }, mongoIdentityOptions => {
+                mongoIdentityOptions.ConnectionString = Environment.GetEnvironmentVariable("MONGO_DB_CONNECTION_STRING");
+            }).AddDefaultTokenProviders();
+
             services.AddIdentityServer(options =>
                 {
                     options.EmitStaticAudienceClaim = true;
@@ -29,10 +47,8 @@ namespace IdentityServer
                 .AddInMemoryIdentityResources(Config.IdentityResources)
                 .AddInMemoryApiScopes(Config.ApiScopes)
                 .AddInMemoryClients(Config.Clients)
-                .AddProfileService<ProfileService>();
+                .AddAspNetIdentity<MongoUser>();
             
-            services.AddTransient<UserStore>();
-            services.AddTransient<UserAccountRepository>();
             services.AddSingleton(_ =>
             {
                 var mongoConnectionString = Environment.GetEnvironmentVariable("MONGO_DB_CONNECTION_STRING");
