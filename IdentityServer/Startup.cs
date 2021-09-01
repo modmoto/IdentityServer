@@ -6,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using AspNetCore.Identity.Mongo;
 using AspNetCore.Identity.Mongo.Model;
 using Microsoft.AspNetCore.Identity;
-using MongoDB.Driver;
 
 namespace IdentityServer
 {
