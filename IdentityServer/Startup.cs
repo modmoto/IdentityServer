@@ -50,12 +50,6 @@ namespace IdentityServer
                 .AddInMemoryClients(Config.Clients)
                 .AddAspNetIdentity<MongoUser>();
             
-            services.AddSingleton(_ =>
-            {
-                var mongoConnectionString = Environment.GetEnvironmentVariable("MONGO_DB_CONNECTION_STRING");
-                return new MongoClient(mongoConnectionString);
-            });
-            
             // services.AddAuthentication()
             //     .AddGoogle("Google", options =>
             //     {
