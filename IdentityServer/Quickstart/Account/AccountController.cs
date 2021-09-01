@@ -96,8 +96,11 @@ namespace IdentityServer.Quickstart.Account
                     {
                         return await LoginUser(model, account, context);
                     }
-                 
-                    ModelState.AddModelError(string.Empty, AccountOptions.EmailAlreadyTaken);
+
+                    foreach (var identityError in result.Errors)
+                    {
+                        ModelState.AddModelError(identityError.Code, identityError.Description);
+                    }
                 }
 
                 var vm2 = await BuildLoginViewModelAsync(model);
