@@ -24,6 +24,7 @@ namespace IdentityServer.Quickstart.Account
     {
         private readonly IUserStore<MongoUser> _userStore;
         private readonly UserManager<MongoUser> _userManager;
+        private readonly ILookupNormalizer _lookupNormalizer;
         private readonly IIdentityServerInteractionService _interaction;
         private readonly IClientStore _clientStore;
         private readonly IAuthenticationSchemeProvider _schemeProvider;
@@ -37,7 +38,8 @@ namespace IdentityServer.Quickstart.Account
             IIdentityProviderStore identityProviderStore,
             IEventService events,
             IUserStore<MongoUser> userStore, 
-            UserManager<MongoUser> userManager)
+            UserManager<MongoUser> userManager,
+            ILookupNormalizer lookupNormalizer)
         {
             _interaction = interaction;
             _clientStore = clientStore;
@@ -46,6 +48,7 @@ namespace IdentityServer.Quickstart.Account
             _events = events;
             _userStore = userStore;
             _userManager = userManager;
+            _lookupNormalizer = lookupNormalizer;
         }
 
         [HttpGet]
@@ -105,7 +108,8 @@ namespace IdentityServer.Quickstart.Account
 
             if (button == "login")
             {
-                var user = await _userStore.FindByNameAsync(model.Name, CancellationToken.None);
+                var normalizedUserName = _lookupNormalizer.NormalizeName(model.Name);
+                var user = await _userStore.FindByNameAsync(normalizedUserName, CancellationToken.None);
                 var identityResult = await _userManager.CheckPasswordAsync(user, model.Password);
                 
                 if (identityResult)
@@ -141,7 +145,7 @@ namespace IdentityServer.Quickstart.Account
             // issue authentication cookie with subject ID and username
             var isuser = new IdentityServerUser(user.Id.ToString())
             {
-                DisplayName = user.UserName
+                DisplayName = user.UserName,
             };
 
             await HttpContext.SignInAsync(isuser, props);
