@@ -36,6 +36,7 @@ namespace IdentityServer
                 identityOptions.Lockout.AllowedForNewUsers = true;
 
                 identityOptions.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+                identityOptions.User.RequireUniqueEmail = true;
             }, mongoIdentityOptions => {
                 mongoIdentityOptions.ConnectionString = Environment.GetEnvironmentVariable("MONGO_DB_CONNECTION_STRING");
             }).AddDefaultTokenProviders();
