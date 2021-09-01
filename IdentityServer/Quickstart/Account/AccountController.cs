@@ -78,6 +78,8 @@ namespace IdentityServer.Quickstart.Account
                 var viewModelAsync = await BuildLoginViewModelAsync(model);
                 viewModelAsync.IsRegisterFlow = true;
                 ModelState.Remove("Email");
+                ModelState.Remove("Password");
+                ModelState.Remove("Name");
                 return View(viewModelAsync);
             }
             
