@@ -24,17 +24,6 @@ namespace IdentityServer
 
             services.AddIdentityMongoDbProvider<MongoUser, MongoRole>(identityOptions =>
             {
-                identityOptions.Password.RequiredLength = 6;
-                identityOptions.Password.RequireLowercase = true;
-                identityOptions.Password.RequireUppercase = true;
-                identityOptions.Password.RequireNonAlphanumeric = false;
-                identityOptions.Password.RequireDigit = true;
-
-                identityOptions.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
-                identityOptions.Lockout.MaxFailedAccessAttempts = 5;
-                identityOptions.Lockout.AllowedForNewUsers = true;
-
-                identityOptions.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
                 identityOptions.User.RequireUniqueEmail = true;
             }, mongoIdentityOptions => {
                 mongoIdentityOptions.ConnectionString = Environment.GetEnvironmentVariable("MONGO_DB_CONNECTION_STRING");
