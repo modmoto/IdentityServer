@@ -141,6 +141,7 @@ namespace IdentityServer.Quickstart.Account
                 props = new AuthenticationProperties
                 {
                     IsPersistent = true,
+                    AllowRefresh = true,
                     ExpiresUtc = DateTimeOffset.UtcNow.Add(AccountOptions.RememberMeLoginDuration)
                 };
             }
