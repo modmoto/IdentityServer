@@ -33,6 +33,8 @@ namespace IdentityServer
                     PostLogoutRedirectUris = { "https://localhost:5000/signout-callback-oidc", "https://fading-flame.com/signout-callback-oidc" , "https://test.fading-flame.com/signout-callback-oidc" },
     
                     AllowOfflineAccess = true,
+                    RefreshTokenUsage = TokenUsage.ReUse,
+                    RefreshTokenExpiration = TokenExpiration.Sliding,
                     
                     AllowedScopes = new List<string>
                     {
