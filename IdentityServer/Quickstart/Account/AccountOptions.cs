@@ -6,7 +6,7 @@ namespace IdentityServer.Quickstart.Account
     {
         public static bool AllowLocalLogin = true;
         public static bool AllowRememberLogin = true;
-        public static TimeSpan RememberMeLoginDuration = TimeSpan.FromMinutes(1);
+        public static TimeSpan RememberMeLoginDuration = TimeSpan.FromDays(30);
 
         public static bool ShowLogoutPrompt = true;
         public static bool AutomaticRedirectAfterSignOut = false;
