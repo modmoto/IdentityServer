@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using AspNetCore.Identity.Mongo.Model;
@@ -87,13 +89,22 @@ namespace IdentityServer.Quickstart.Account
             {
                 if (ModelState.IsValid)
                 {
+                    var claimsToAdd = new List<IdentityUserClaim<string>> {
+                        new()
+                        {
+                            ClaimType = ClaimTypes.GivenName,
+                            ClaimValue = model.Name
+                        }
+                    };
                     var account = new MongoUser
                     {
-                        UserName = model.Name,
-                        Email = model.Email
+                        UserName = model.Email,
+                        Email = model.Email,
+                        Claims = claimsToAdd
                     };
+
                     var result = await _userManager.CreateAsync(account, model.Password);
-                    
+
                     if (result.Succeeded)
                     {
                         return await LoginUser(model, account, context);
@@ -113,8 +124,8 @@ namespace IdentityServer.Quickstart.Account
 
             if (button == "login")
             {
-                var normalizedUserName = _lookupNormalizer.NormalizeName(model.Name);
-                var user = await _userStore.FindByNameAsync(normalizedUserName, CancellationToken.None);
+                var mail = _lookupNormalizer.NormalizeName(model.Email);
+                var user = await _userStore.FindByNameAsync(mail, CancellationToken.None);
                 var identityResult = await _userManager.CheckPasswordAsync(user, model.Password);
                 
                 if (identityResult)
@@ -122,7 +133,8 @@ namespace IdentityServer.Quickstart.Account
                     return await LoginUser(model, user, context);
                 }
 
-                await _events.RaiseAsync(new UserLoginFailureEvent(model.Name, "invalid credentials", clientId:context?.Client.ClientId));
+                await _events.RaiseAsync(new UserLoginFailureEvent(model.Email, "invalid credentials", clientId:context?
+                .Client.ClientId));
                 ModelState.AddModelError(string.Empty, AccountOptions.InvalidCredentialsErrorMessage);
                 ModelState.Remove("Email");
             }
