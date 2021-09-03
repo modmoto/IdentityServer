@@ -92,7 +92,7 @@ namespace IdentityServer.Quickstart.Account
                     var claimsToAdd = new List<IdentityUserClaim<string>> {
                         new()
                         {
-                            ClaimType = JwtClaimTypes.PreferredUserName,
+                            ClaimType = JwtClaimTypes.NickName,
                             ClaimValue = model.Name
                         }
                     };
