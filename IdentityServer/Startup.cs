@@ -24,6 +24,7 @@ namespace IdentityServer
 
             services.AddIdentityMongoDbProvider<MongoUser, MongoRole>(identityOptions =>
             {
+                identityOptions.Password.RequireNonAlphanumeric = false;
                 identityOptions.User.RequireUniqueEmail = true;
             }, mongoIdentityOptions => {
                 mongoIdentityOptions.ConnectionString = Environment.GetEnvironmentVariable("MONGO_DB_CONNECTION_STRING");
