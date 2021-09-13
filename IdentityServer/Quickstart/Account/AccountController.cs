@@ -67,6 +67,77 @@ namespace IdentityServer.Quickstart.Account
 
             return View(vm);
         }
+        
+        [HttpGet]
+        public IActionResult Register(string returnUrl, bool rememberLogin)
+        {
+            var registerInputModel = new RegisterViewModel
+            {
+                ReturnUrl = returnUrl,
+                RememberLogin = rememberLogin
+            };
+
+            return View(registerInputModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register(RegisterViewModel model, string button)
+        {
+            var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
+
+            if (button == "cancel")
+            {
+                var login = new LoginInputModel
+                {
+                    RememberLogin = model.RememberLogin,
+                    ReturnUrl = model.ReturnUrl
+                };
+                return RedirectToAction("Login", login);
+            }
+            
+            if (model.Password != model.RepeatPassword)
+            {
+                ModelState.AddModelError("PasswordsNotEqual", "Passwords are not equal");
+            }
+            
+            if (ModelState.IsValid)
+            {
+                var claimsToAdd = new List<IdentityUserClaim<string>> {
+                    new()
+                    {
+                        ClaimType = JwtClaimTypes.GivenName,
+                        ClaimValue = model.Name
+                    }
+                };
+                var account = new MongoUser
+                {
+                    UserName = model.Email,
+                    Email = model.Email,
+                    Claims = claimsToAdd
+                };
+
+                var result = await _userManager.CreateAsync(account, model.Password);
+
+                if (result.Succeeded)
+                {
+                    return await LoginUser(new LoginInputModel
+                    {
+                        Email = model.Email,
+                        Password = model.Password,
+                        RememberLogin = model.RememberLogin,
+                        ReturnUrl = model.ReturnUrl
+                    }, account, context);
+                }
+
+                foreach (var identityError in result.Errors)
+                {
+                    ModelState.AddModelError(identityError.Code, identityError.Description);
+                }
+            }
+
+            return View(model);
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -77,51 +148,14 @@ namespace IdentityServer.Quickstart.Account
 
             if (button == "register")
             {
-                var viewModelAsync = await BuildLoginViewModelAsync(model);
-                viewModelAsync.IsRegisterFlow = true;
-                ModelState.Remove("Email");
-                ModelState.Remove("Password");
-                ModelState.Remove("Name");
-                return View(viewModelAsync);
+                var register = new RegisterViewModel
+                {
+                    RememberLogin = model.RememberLogin,
+                    ReturnUrl = model.ReturnUrl
+                };
+                return RedirectToAction("Register", register);
             }
             
-            if (button == "register-for-real")
-            {
-                if (ModelState.IsValid)
-                {
-                    var claimsToAdd = new List<IdentityUserClaim<string>> {
-                        new()
-                        {
-                            ClaimType = JwtClaimTypes.GivenName,
-                            ClaimValue = model.Name
-                        }
-                    };
-                    var account = new MongoUser
-                    {
-                        UserName = model.Email,
-                        Email = model.Email,
-                        Claims = claimsToAdd
-                    };
-
-                    var result = await _userManager.CreateAsync(account, model.Password);
-
-                    if (result.Succeeded)
-                    {
-                        return await LoginUser(model, account, context);
-                    }
-
-                    foreach (var identityError in result.Errors)
-                    {
-                        ModelState.AddModelError(identityError.Code, identityError.Description);
-                    }
-                }
-
-                var vm2 = await BuildLoginViewModelAsync(model);
-                vm2.IsRegisterFlow = true;
-                return View(vm2);
-
-            }
-
             if (button == "login")
             {
                 var mail = _lookupNormalizer.NormalizeName(model.Email);

@@ -2,8 +2,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace IdentityServer.Quickstart.Account
 {
-    public class LoginInputModel
+    public class RegisterViewModel
     {
+        [Required]
+        public string Name { get; set; }
+        [Required]
+        public string RepeatPassword { get; set; }
         [Required]
         public string Password { get; set; }
         [Required]
