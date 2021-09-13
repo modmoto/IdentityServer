@@ -71,7 +71,7 @@ namespace IdentityServer.Quickstart.Account
         [HttpGet]
         public IActionResult Register(string returnUrl, bool rememberLogin)
         {
-            var registerInputModel = new RegisterViewModel
+            var registerInputModel = new RegisterInputModel
             {
                 ReturnUrl = returnUrl,
                 RememberLogin = rememberLogin
@@ -82,7 +82,7 @@ namespace IdentityServer.Quickstart.Account
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Register(RegisterViewModel model, string button)
+        public async Task<IActionResult> Register(RegisterInputModel model, string button)
         {
             var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
 
@@ -148,7 +148,7 @@ namespace IdentityServer.Quickstart.Account
 
             if (button == "register")
             {
-                var register = new RegisterViewModel
+                var register = new RegisterInputModel
                 {
                     RememberLogin = model.RememberLogin,
                     ReturnUrl = model.ReturnUrl
