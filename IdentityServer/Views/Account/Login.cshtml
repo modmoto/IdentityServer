@@ -3,11 +3,10 @@
 <div class="login-page container">
     <partial name="_ValidationSummary" />
 
-    <div class="row" >
+    <div class="row">
 
         @if (Model.EnableLocalLogin)
         {
-            <div class="col"></div>
             <div class="col">
                 <div class="card">
                     <div class="card-body">
@@ -36,13 +35,11 @@
                     </div>
                 </div>
             </div>
-            <div class="col"></div>
         }
 
         @if (Model.VisibleExternalProviders.Any())
         {
             <div class="row">
-                <div class="col"></div>
                 <div class="col">
                     <div class="card">
                         <div class="card-header">
@@ -66,7 +63,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="col"></div>
             </div>
         }
 
@@ -76,7 +72,6 @@
                 <strong>Invalid login request</strong>
                 There are no login schemes configured for this request.
             </div>
-        }
         }
     </div>
 </div>
