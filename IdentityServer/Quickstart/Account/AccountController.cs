@@ -79,6 +79,43 @@ namespace IdentityServer.Quickstart.Account
 
             return View(registerInputModel);
         }
+        
+        [HttpGet]
+        public IActionResult ForgotPassword(string returnUrl, string email)
+        {
+            var model = new ForgotPasswordInputModel()
+            {
+                Email = email,
+                ReturnUrl = returnUrl,
+                EmailSent = false
+            };
+
+            return View(model);
+        }
+        
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordInputModel model, string button)
+        {
+            var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
+
+            if (button == "cancel")
+            {
+                var login = new LoginInputModel
+                {
+                    ReturnUrl = model.ReturnUrl
+                };
+                return RedirectToAction("Login", login);
+            }
+            
+            var newModel = new ForgotPasswordInputModel()
+            {
+                ReturnUrl = model.ReturnUrl,
+                EmailSent = true
+            };
+            
+            return View(newModel);
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -154,6 +191,16 @@ namespace IdentityServer.Quickstart.Account
                     ReturnUrl = model.ReturnUrl
                 };
                 return RedirectToAction("Register", register);
+            }
+            
+            if (button == "forgot-pw")
+            {
+                var register = new ForgotPasswordInputModel
+                {
+                    Email = model.Email,
+                    ReturnUrl = model.ReturnUrl
+                };
+                return RedirectToAction("ForgotPassword", register);
             }
             
             if (button == "login")
