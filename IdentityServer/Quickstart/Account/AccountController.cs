@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using AspNetCore.Identity.Mongo.Model;
@@ -12,11 +11,13 @@ using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Services;
 using Duende.IdentityServer.Stores;
 using IdentityModel;
+using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using MimeKit;
 
 namespace IdentityServer.Quickstart.Account
 {
@@ -83,11 +84,23 @@ namespace IdentityServer.Quickstart.Account
         [HttpGet]
         public IActionResult ForgotPassword(string returnUrl, string email)
         {
-            var model = new ForgotPasswordInputModel()
+            var model = new ForgotPasswordInputModel
+            {
+                Email = email,
+                ReturnUrl = returnUrl
+            };
+
+            return View(model);
+        }
+        
+        [HttpGet]
+        public IActionResult ResetPassword(string returnUrl, string email, string resetToken)
+        {
+            var model = new ResetPasswordInputModel
             {
                 Email = email,
                 ReturnUrl = returnUrl,
-                EmailSent = false
+                PasswordResetToken = resetToken
             };
 
             return View(model);
@@ -95,10 +108,38 @@ namespace IdentityServer.Quickstart.Account
         
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordInputModel model, string button)
+        public async Task<IActionResult> ResetPassword(ResetPasswordInputModel model)
         {
             var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
 
+            if (model.NewPassword != model.RepeatPassword)
+            {
+                ModelState.AddModelError("PasswordsNotEqual", "Passwords are not equal");
+            }
+
+            if (ModelState.IsValid)
+            {
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                var passwordChangeResult = await _userManager.ResetPasswordAsync(user, model.PasswordResetToken, model.NewPassword);
+                if (passwordChangeResult.Succeeded)
+                {
+                    var loginInputModel = new LoginInputModel
+                    {
+                        Password = model.NewPassword,
+                        Email = model.Email,
+                        ReturnUrl = model.ReturnUrl
+                    };
+                    await LoginUser(loginInputModel, user, context);
+                }
+            }
+            
+            return View(model);
+        }
+        
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordInputModel model, string button)
+        {
             if (button == "cancel")
             {
                 var login = new LoginInputModel
@@ -107,14 +148,45 @@ namespace IdentityServer.Quickstart.Account
                 };
                 return RedirectToAction("Login", login);
             }
-            
-            var newModel = new ForgotPasswordInputModel()
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            var newPwToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var state = await SendMail(model, newPwToken, model.ReturnUrl);
+
+            var newModel = new ForgotPasswordInputModel
             {
                 ReturnUrl = model.ReturnUrl,
-                EmailSent = true
+                EmailSent = state
             };
             
             return View(newModel);
+        }
+
+        private async Task<MailState> SendMail(ForgotPasswordInputModel model, string resetToken, string returnUrl)
+        {
+            try
+            {
+                var mailMessage = new MimeMessage();
+                mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
+                mailMessage.To.Add(new MailboxAddress("reset password", model.Email));
+                mailMessage.Subject = "Reset password";
+                mailMessage.Body = new TextPart("text")
+                {
+                    Text = $"Reset your password here: https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={resetToken}&returnUrl={returnUrl}&email={model.Email}"
+                };
+
+                using var smtpClient = new SmtpClient();
+                await smtpClient.ConnectAsync("smtp.strato.de", 465, true);
+                await smtpClient.AuthenticateAsync("info@fading-flame.com", Environment.GetEnvironmentVariable("MAIL_PASSWORD"));
+                await smtpClient.SendAsync(mailMessage);
+                await smtpClient.DisconnectAsync(true);
+
+                return MailState.Sent;
+            }
+            catch (Exception e)
+            {
+                return MailState.Error;
+            }
         }
 
         [HttpPost]
@@ -316,7 +388,7 @@ namespace IdentityServer.Quickstart.Account
                 // build a return URL so the upstream provider will redirect back
                 // to us after the user has logged out. this allows us to then
                 // complete our single sign-out processing.
-                string url = Url.Action("Logout", new { logoutId = vm.LogoutId });
+                var url = Url.Action("Logout", new { logoutId = vm.LogoutId });
 
                 // this triggers a redirect to the external provider for sign-out
                 return SignOut(new AuthenticationProperties { RedirectUri = url }, vm.ExternalAuthenticationScheme);
