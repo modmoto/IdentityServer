@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AspNetCore.Identity.Mongo.Model;
@@ -17,6 +18,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using MimeKit;
 
 namespace IdentityServer.Quickstart.Account
@@ -119,8 +121,10 @@ namespace IdentityServer.Quickstart.Account
 
             if (ModelState.IsValid)
             {
+                var codeDecodedBytes = WebEncoders.Base64UrlDecode(model.PasswordResetToken);
+                var codeDecoded = Encoding.UTF8.GetString(codeDecodedBytes);
                 var user = await _userManager.FindByEmailAsync(model.Email);
-                var passwordChangeResult = await _userManager.ResetPasswordAsync(user, model.PasswordResetToken, model.NewPassword);
+                var passwordChangeResult = await _userManager.ResetPasswordAsync(user, codeDecoded, model.NewPassword);
                 if (passwordChangeResult.Succeeded)
                 {
                     var loginInputModel = new LoginInputModel
@@ -130,6 +134,10 @@ namespace IdentityServer.Quickstart.Account
                         ReturnUrl = model.ReturnUrl
                     };
                     await LoginUser(loginInputModel, user, context);
+                }
+                else
+                {
+                    AddErrorsToModelState(passwordChangeResult);
                 }
             }
             
@@ -166,14 +174,17 @@ namespace IdentityServer.Quickstart.Account
         {
             try
             {
+                var tokenGeneratedBytes = Encoding.UTF8.GetBytes(resetToken);
+                var codeEncoded = WebEncoders.Base64UrlEncode(tokenGeneratedBytes);
+                
                 var mailMessage = new MimeMessage();
                 mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
                 mailMessage.To.Add(new MailboxAddress("reset password", model.Email));
                 mailMessage.Subject = "Reset password";
-                mailMessage.Body = new TextPart("text")
-                {
-                    Text = $"Reset your password here: https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={resetToken}&returnUrl={returnUrl}&email={model.Email}"
-                };
+                var bodyBuilder = new BodyBuilder();
+                bodyBuilder.HtmlBody = "Reset your password here: <br/>" +
+                                       $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
+                mailMessage.Body = bodyBuilder.ToMessageBody();
 
                 using var smtpClient = new SmtpClient();
                 await smtpClient.ConnectAsync("smtp.strato.de", 465, true);
@@ -239,13 +250,18 @@ namespace IdentityServer.Quickstart.Account
                     }, account, context);
                 }
 
-                foreach (var identityError in result.Errors)
-                {
-                    ModelState.AddModelError(identityError.Code, identityError.Description);
-                }
+                AddErrorsToModelState(result);
             }
 
             return View(model);
+        }
+
+        private void AddErrorsToModelState(IdentityResult result)
+        {
+            foreach (var identityError in result.Errors)
+            {
+                ModelState.AddModelError(identityError.Code, identityError.Description);
+            }
         }
 
         [HttpPost]
