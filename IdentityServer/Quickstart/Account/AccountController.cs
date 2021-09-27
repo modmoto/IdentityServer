@@ -112,7 +112,9 @@ namespace IdentityServer.Quickstart.Account
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ResetPassword(ResetPasswordInputModel model)
         {
-            var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
+            var codeDecodedBytesReturnUrl = WebEncoders.Base64UrlDecode(model.ReturnUrl);
+            var decodedReturnUrl = Encoding.UTF8.GetString(codeDecodedBytesReturnUrl);
+            var context = await _interaction.GetAuthorizationContextAsync(decodedReturnUrl);
 
             if (model.NewPassword != model.RepeatPassword)
             {
@@ -123,6 +125,7 @@ namespace IdentityServer.Quickstart.Account
             {
                 var codeDecodedBytes = WebEncoders.Base64UrlDecode(model.PasswordResetToken);
                 var codeDecoded = Encoding.UTF8.GetString(codeDecodedBytes);
+                
                 var user = await _userManager.FindByEmailAsync(model.Email);
                 var passwordChangeResult = await _userManager.ResetPasswordAsync(user, codeDecoded, model.NewPassword);
                 if (passwordChangeResult.Succeeded)
@@ -131,7 +134,7 @@ namespace IdentityServer.Quickstart.Account
                     {
                         Password = model.NewPassword,
                         Email = model.Email,
-                        ReturnUrl = model.ReturnUrl
+                        ReturnUrl = decodedReturnUrl
                     };
                     await LoginUser(loginInputModel, user, context);
                 }
@@ -159,7 +162,7 @@ namespace IdentityServer.Quickstart.Account
 
             var user = await _userManager.FindByEmailAsync(model.Email);
             var newPwToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var state = await SendMail(model, newPwToken, model.ReturnUrl);
+            var state = await SendMail(model, newPwToken);
 
             var newModel = new ForgotPasswordInputModel
             {
@@ -170,12 +173,15 @@ namespace IdentityServer.Quickstart.Account
             return View(newModel);
         }
 
-        private async Task<MailState> SendMail(ForgotPasswordInputModel model, string resetToken, string returnUrl)
+        private async Task<MailState> SendMail(ForgotPasswordInputModel model, string resetToken)
         {
             try
             {
                 var tokenGeneratedBytes = Encoding.UTF8.GetBytes(resetToken);
                 var codeEncoded = WebEncoders.Base64UrlEncode(tokenGeneratedBytes);
+                
+                var tokenGeneratedBytesreturnUrl = Encoding.UTF8.GetBytes(model.ReturnUrl);
+                var encodedReturnUrl = WebEncoders.Base64UrlEncode(tokenGeneratedBytesreturnUrl);
                 
                 var mailMessage = new MimeMessage();
                 mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
@@ -183,7 +189,8 @@ namespace IdentityServer.Quickstart.Account
                 mailMessage.Subject = "Reset password";
                 var bodyBuilder = new BodyBuilder();
                 bodyBuilder.HtmlBody = "Reset your password here: <br/>" +
-                                       $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
+                                       $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={encodedReturnUrl}&email={model.Email}\">Reset password</a>";
+                                       // $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
                 mailMessage.Body = bodyBuilder.ToMessageBody();
 
                 using var smtpClient = new SmtpClient();
