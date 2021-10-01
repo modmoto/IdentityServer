@@ -98,19 +98,26 @@ namespace IdentityServer.Quickstart.Account
         [HttpGet]
         public IActionResult ResetPassword(string returnUrl, string email, string resetToken)
         {
-            var codeDecodedBytes = WebEncoders.Base64UrlDecode(resetToken);
-            var codeDecoded = Encoding.UTF8.GetString(codeDecodedBytes);
-            
+            var codeDecoded = Decode(resetToken);
+            var returnUrlDecoded = Decode(returnUrl);
+
             var model = new ResetPasswordInputModel
             {
                 Email = email,
-                ReturnUrl = returnUrl,
+                ReturnUrl = returnUrlDecoded,
                 PasswordResetToken = codeDecoded
             };
 
             return View(model);
         }
-        
+
+        private static string Decode(string resetToken)
+        {
+            var codeDecodedBytes = WebEncoders.Base64UrlDecode(resetToken);
+            var codeDecoded = Encoding.UTF8.GetString(codeDecodedBytes);
+            return codeDecoded;
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ResetPassword(ResetPasswordInputModel model)
@@ -132,9 +139,9 @@ namespace IdentityServer.Quickstart.Account
                     {
                         Password = model.NewPassword,
                         Email = model.Email,
-                        ReturnUrl = model.ReturnUrl
+                        ReturnUrl = Decode(model.ReturnUrl)
                     };
-                    return await LoginUser(loginInputModel, user, context, "https://fading-flame.com");
+                    return await LoginUser(loginInputModel, user, context);
                 }
 
                 AddErrorsToModelState(passwordChangeResult);
@@ -173,17 +180,17 @@ namespace IdentityServer.Quickstart.Account
         {
             try
             {
-                var tokenGeneratedBytes = Encoding.UTF8.GetBytes(resetToken);
-                var codeEncoded = WebEncoders.Base64UrlEncode(tokenGeneratedBytes);
-                
+                var codeEncoded = Encode(resetToken);
+                var returnUrl = Encode(model.ReturnUrl);
+
                 var mailMessage = new MimeMessage();
                 mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
                 mailMessage.To.Add(new MailboxAddress("reset password", model.Email));
                 mailMessage.Subject = "Reset password";
                 var bodyBuilder = new BodyBuilder();
                 bodyBuilder.HtmlBody = "Reset your password here: <br/>" +
-                                        $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
-                                        // $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
+                                       // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
+                                       $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
                 
                 mailMessage.Body = bodyBuilder.ToMessageBody();
 
@@ -199,6 +206,13 @@ namespace IdentityServer.Quickstart.Account
             {
                 return MailState.Error;
             }
+        }
+
+        private static string Encode(string resetToken)
+        {
+            var tokenGeneratedBytes = Encoding.UTF8.GetBytes(resetToken);
+            var codeEncoded = WebEncoders.Base64UrlEncode(tokenGeneratedBytes);
+            return codeEncoded;
         }
 
         [HttpPost]
