@@ -326,13 +326,8 @@ namespace IdentityServer.Quickstart.Account
             return View(vm);
         }
 
-        private async Task<IActionResult> LoginUser(LoginInputModel model, MongoUser user, AuthorizationRequest context, string overwriteRedirect = null)
+        private async Task<IActionResult> LoginUser(LoginInputModel model, MongoUser user, AuthorizationRequest context)
         {
-            if (overwriteRedirect != null)
-            {
-                return Redirect(overwriteRedirect);
-            }
-            
             await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserName, user.Id.ToString(), user.UserName, clientId: context?.Client.ClientId));
 
             // only set explicit expiration here if user chooses "remember me". 
