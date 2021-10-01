@@ -185,7 +185,9 @@ namespace IdentityServer.Quickstart.Account
                 var bodyBuilder = new BodyBuilder();
                 bodyBuilder.HtmlBody = "Reset your password here: <br/>" +
                                         // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
-                                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";mailMessage.Body = bodyBuilder.ToMessageBody();
+                                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
+                
+                mailMessage.Body = bodyBuilder.ToMessageBody();
 
                 using var smtpClient = new SmtpClient();
                 await smtpClient.ConnectAsync("smtp.strato.de", 465, true);
