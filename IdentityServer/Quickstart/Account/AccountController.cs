@@ -134,12 +134,10 @@ namespace IdentityServer.Quickstart.Account
                         Email = model.Email,
                         ReturnUrl = model.ReturnUrl
                     };
-                    await LoginUser(loginInputModel, user, context, "https://fading-flame.com");
+                    return await LoginUser(loginInputModel, user, context, "https://fading-flame.com");
                 }
-                else
-                {
-                    AddErrorsToModelState(passwordChangeResult);
-                }
+
+                AddErrorsToModelState(passwordChangeResult);
             }
             
             return View(model);
@@ -184,8 +182,8 @@ namespace IdentityServer.Quickstart.Account
                 mailMessage.Subject = "Reset password";
                 var bodyBuilder = new BodyBuilder();
                 bodyBuilder.HtmlBody = "Reset your password here: <br/>" +
-                                        // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
-                                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
+                                        $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
+                                        // $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
                 
                 mailMessage.Body = bodyBuilder.ToMessageBody();
 
