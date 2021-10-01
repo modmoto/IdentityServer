@@ -98,16 +98,13 @@ namespace IdentityServer.Quickstart.Account
         [HttpGet]
         public IActionResult ResetPassword(string returnUrl, string email, string resetToken)
         {
-            var codeDecodedBytesReturnUrl = WebEncoders.Base64UrlDecode(returnUrl);
-            var decodedReturnUrl = Encoding.UTF8.GetString(codeDecodedBytesReturnUrl);
-            
             var codeDecodedBytes = WebEncoders.Base64UrlDecode(resetToken);
             var codeDecoded = Encoding.UTF8.GetString(codeDecodedBytes);
             
             var model = new ResetPasswordInputModel
             {
                 Email = email,
-                ReturnUrl = decodedReturnUrl,
+                ReturnUrl = returnUrl,
                 PasswordResetToken = codeDecoded
             };
 
@@ -181,18 +178,14 @@ namespace IdentityServer.Quickstart.Account
                 var tokenGeneratedBytes = Encoding.UTF8.GetBytes(resetToken);
                 var codeEncoded = WebEncoders.Base64UrlEncode(tokenGeneratedBytes);
                 
-                var tokenGeneratedBytesreturnUrl = Encoding.UTF8.GetBytes(model.ReturnUrl);
-                var encodedReturnUrl = WebEncoders.Base64UrlEncode(tokenGeneratedBytesreturnUrl);
-                
                 var mailMessage = new MimeMessage();
                 mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
                 mailMessage.To.Add(new MailboxAddress("reset password", model.Email));
                 mailMessage.Subject = "Reset password";
                 var bodyBuilder = new BodyBuilder();
                 bodyBuilder.HtmlBody = "Reset your password here: <br/>" +
-                                       // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={encodedReturnUrl}&email={model.Email}\">Reset password</a>";
-                                       $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={encodedReturnUrl}&email={model.Email}\">Reset password</a>";
-                mailMessage.Body = bodyBuilder.ToMessageBody();
+                                        // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";
+                                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={model.ReturnUrl}&email={model.Email}\">Reset password</a>";mailMessage.Body = bodyBuilder.ToMessageBody();
 
                 using var smtpClient = new SmtpClient();
                 await smtpClient.ConnectAsync("smtp.strato.de", 465, true);
@@ -321,6 +314,11 @@ namespace IdentityServer.Quickstart.Account
 
         private async Task<IActionResult> LoginUser(LoginInputModel model, MongoUser user, AuthorizationRequest context, string overwriteRedirect = null)
         {
+            if (overwriteRedirect != null)
+            {
+                return Redirect(overwriteRedirect);
+            }
+            
             await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserName, user.Id.ToString(), user.UserName, clientId: context?.Client.ClientId));
 
             // only set explicit expiration here if user chooses "remember me". 
@@ -354,7 +352,7 @@ namespace IdentityServer.Quickstart.Account
                 }
 
                 // we can trust model.ReturnUrl since GetAuthorizationContextAsync returned non-null
-                return Redirect(overwriteRedirect ?? model.ReturnUrl);
+                return Redirect(model.ReturnUrl);
             }
 
             // request for a local page
