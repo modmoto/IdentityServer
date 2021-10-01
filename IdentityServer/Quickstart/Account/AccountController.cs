@@ -137,7 +137,7 @@ namespace IdentityServer.Quickstart.Account
                         Email = model.Email,
                         ReturnUrl = model.ReturnUrl
                     };
-                    await LoginUser(loginInputModel, user, context);
+                    await LoginUser(loginInputModel, user, context, "https://fading-flame.com");
                 }
                 else
                 {
@@ -202,7 +202,7 @@ namespace IdentityServer.Quickstart.Account
 
                 return MailState.Sent;
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return MailState.Error;
             }
@@ -310,8 +310,7 @@ namespace IdentityServer.Quickstart.Account
                     return await LoginUser(model, user, context);
                 }
 
-                await _events.RaiseAsync(new UserLoginFailureEvent(model.Email, "invalid credentials", clientId:context?
-                .Client.ClientId));
+                await _events.RaiseAsync(new UserLoginFailureEvent(model.Email, "invalid credentials", clientId:context?.Client.ClientId));
                 ModelState.AddModelError(string.Empty, AccountOptions.InvalidCredentialsErrorMessage);
                 ModelState.Remove("Email");
             }
@@ -320,7 +319,7 @@ namespace IdentityServer.Quickstart.Account
             return View(vm);
         }
 
-        private async Task<IActionResult> LoginUser(LoginInputModel model, MongoUser user, AuthorizationRequest context)
+        private async Task<IActionResult> LoginUser(LoginInputModel model, MongoUser user, AuthorizationRequest context, string overwriteRedirect = null)
         {
             await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserName, user.Id.ToString(), user.UserName, clientId: context?.Client.ClientId));
 
@@ -355,7 +354,7 @@ namespace IdentityServer.Quickstart.Account
                 }
 
                 // we can trust model.ReturnUrl since GetAuthorizationContextAsync returned non-null
-                return Redirect(model.ReturnUrl);
+                return Redirect(overwriteRedirect ?? model.ReturnUrl);
             }
 
             // request for a local page
