@@ -58,14 +58,12 @@ namespace IdentityServer.Quickstart.Account
         }
 
         [HttpGet]
-        public async Task<IActionResult> Login(string returnUrl)
+        public async Task<IActionResult> Login(string returnUrl, string email)
         {
-            // build a model so we know what to show on the login page
-            var vm = await BuildLoginViewModelAsync(returnUrl);
+            var vm = await BuildLoginViewModelAsync(returnUrl, email);
 
             if (vm.IsExternalLoginOnly)
             {
-                // we only have one option for logging in and it's an external provider
                 return RedirectToAction("Challenge", "External", new { scheme = vm.ExternalLoginScheme, returnUrl });
             }
 
@@ -86,25 +84,43 @@ namespace IdentityServer.Quickstart.Account
         }
         
         [HttpGet]
-        public async Task<IActionResult> ConfirmMail(string returnUrl, string email, string confirmToken)
+        public async Task<IActionResult> ConfirmMail(string returnUrl, string email, string confirmToken, bool mailSent)
         {
-            var codeDecoded = Decode(confirmToken);
-            var returnUrlDecoded = Decode(returnUrl);
-            var user = await _userManager.FindByEmailAsync(email);
-            var login = new LoginInputModel
+            if (!mailSent)
             {
-                ReturnUrl = returnUrlDecoded,
-                Email = email
-            };
+                var codeDecoded = Decode(confirmToken);
+                var returnUrlDecoded = Decode(returnUrl);
+                var user = await _userManager.FindByEmailAsync(email);
+                var model = new ConfirmViewModel()
+                {
+                    ReturnUrl = returnUrlDecoded,
+                    Email = email
+                };
             
-            if (user != null)
-            {
-                await _userManager.ConfirmEmailAsync(user, codeDecoded);
-                login.ConfirmedMail = true;
-                return RedirectToAction("Login", login);
+                if (user != null)
+                {
+                    var result = await _userManager.ConfirmEmailAsync(user, codeDecoded);
+                    if (result.Succeeded)
+                    {
+                        model.ConfirmedMail = true;    
+                    }
+                
+                    return View(model);
+                }
             }
             
-            return RedirectToAction("Login", login);
+            return View(new ConfirmViewModel { MailSent = mailSent });
+        }
+
+        [HttpPost]
+        public IActionResult ConfirmMail(ConfirmViewModel viewModel)
+        {
+            var loginViewModel = new LoginViewModel
+            {
+                Email = viewModel.Email,
+                ReturnUrl = viewModel.ReturnUrl
+            };
+            return RedirectToAction("Login", loginViewModel);
         }
         
         [HttpGet]
@@ -193,8 +209,8 @@ namespace IdentityServer.Quickstart.Account
             var codeEncoded = Encode(newPwToken);
             var returnUrl = Encode(model.ReturnUrl);
             var body = "Reset your password here: <br/>" +
-                        // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
-                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
+                        $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
+                        // $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
             var state = await SendMail(model.Email, body, "Reset password");
 
             var newModel = new MailInputModel
@@ -314,15 +330,13 @@ namespace IdentityServer.Quickstart.Account
                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Confirm Email</a>";
 
             await SendMail(model.Email, body, "Confirm registration on fading-flame.com");   
-            var register = new RegisterInputModel()
+            var register = new ConfirmViewModel()
             {
                 Email = model.Email,
-                Name = model.Name,
-                RememberLogin = model.RememberLogin,
                 ReturnUrl = model.ReturnUrl,
-                EmailSent = MailState.Sent
+                MailSent = true
             };
-            return RedirectToAction("ForgotPassword", register);
+            return RedirectToAction("ConfirmMail", register);
         }
 
         private void AddErrorsToModelState(IdentityResult result)
@@ -427,13 +441,10 @@ namespace IdentityServer.Quickstart.Account
         [HttpGet]
         public async Task<IActionResult> Logout(string logoutId)
         {
-            // build a model so the logout page knows what to display
             var vm = await BuildLogoutViewModelAsync(logoutId);
 
             if (vm.ShowLogoutPrompt == false)
             {
-                // if the request for logout was properly authenticated from IdentityServer, then
-                // we don't need to show the prompt and can just log the user out directly.
                 return await Logout(vm);
             }
 
@@ -470,7 +481,7 @@ namespace IdentityServer.Quickstart.Account
             return View();
         }
 
-        private async Task<LoginViewModel> BuildLoginViewModelAsync(string returnUrl)
+        private async Task<LoginViewModel> BuildLoginViewModelAsync(string returnUrl, string email)
         {
             var context = await _interaction.GetAuthorizationContextAsync(returnUrl);
             if (context?.IdP != null && await _schemeProvider.GetSchemeAsync(context.IdP) != null)
@@ -481,6 +492,7 @@ namespace IdentityServer.Quickstart.Account
                 {
                     EnableLocalLogin = local,
                     ReturnUrl = returnUrl,
+                    Email = email,
                 };
 
                 if (!local)
@@ -530,13 +542,14 @@ namespace IdentityServer.Quickstart.Account
                 AllowRememberLogin = AccountOptions.AllowRememberLogin,
                 EnableLocalLogin = allowLocal && AccountOptions.AllowLocalLogin,
                 ReturnUrl = returnUrl,
-                ExternalProviders = providers.ToArray()
+                ExternalProviders = providers.ToArray(),
+                Email = email,
             };
         }
 
         private async Task<LoginViewModel> BuildLoginViewModelAsync(LoginInputModel model)
         {
-            var vm = await BuildLoginViewModelAsync(model.ReturnUrl);
+            var vm = await BuildLoginViewModelAsync(model.ReturnUrl, model.Email);
             vm.RememberLogin = model.RememberLogin;
             return vm;
         }

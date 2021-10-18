@@ -10,12 +10,6 @@
             <div class="col">
                 <div class="card">
                     <div class="card-body">
-                        @if (Model.ConfirmedMail)
-                        {
-                            <div class="pt-3 pb-3 mt-3 alert alert-success text-center" role="alert">
-                                Email confirmed, please login!
-                            </div>
-                        }
                         <form asp-route="Login">
                             <input type="hidden" asp-for="ReturnUrl"/>
 
