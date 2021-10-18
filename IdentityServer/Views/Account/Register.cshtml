@@ -1,3 +1,4 @@
+@using IdentityServer.Quickstart.Account
 @model IdentityServer.Quickstart.Account.RegisterInputModel
 
 <div class="login-container container">
@@ -26,19 +27,23 @@
                             <label asp-for="RepeatPassword"></label>
                             <input type="password" class="form-control" placeholder="Repeat password" asp-for="RepeatPassword" autocomplete="off">
                         </div>
-                        
-                        <div class="form-group">
-                            <div class="form-check">
-                                <input class="form-check-input" asp-for="RememberLogin">
-                                <label class="form-check-label" asp-for="RememberLogin">
-                                    Remember My Login
-                                </label>
-                            </div>
-                        </div>
                     
                         <button class="btn btn-secondary" name="button" value="cancel">Cancel</button>
                         <button class="btn btn-primary" name="button" value="register">Register</button>
                     </form>
+                    @if (Model.EmailSent == MailState.Sent)
+                    {
+                        <div class="pt-3 pb-3 mt-3 alert alert-success text-center" role="alert">
+                            Email with registration link sent!
+                        </div>
+                    }
+                    
+                    @if (Model.EmailSent == MailState.Error)
+                    {
+                        <div class="pt-3 pb-3 mt-3 alert alert-warning text-center" role="alert">
+                            There was an error sending your registration link, try again later or contact support
+                        </div>
+                    }
                 </div>
             </div>
         </div>

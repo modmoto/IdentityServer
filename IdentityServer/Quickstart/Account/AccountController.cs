@@ -35,6 +35,7 @@ namespace IdentityServer.Quickstart.Account
         private readonly IAuthenticationSchemeProvider _schemeProvider;
         private readonly IIdentityProviderStore _identityProviderStore;
         private readonly IEventService _events;
+        private readonly bool _isTestMode = string.Equals(Environment.GetEnvironmentVariable("IS_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
 
         public AccountController(
             IIdentityServerInteractionService interaction,
@@ -72,21 +73,44 @@ namespace IdentityServer.Quickstart.Account
         }
         
         [HttpGet]
-        public IActionResult Register(string returnUrl, bool rememberLogin)
+        public IActionResult Register(string returnUrl, bool rememberLogin, MailState mailSent)
         {
             var registerInputModel = new RegisterInputModel
             {
                 ReturnUrl = returnUrl,
-                RememberLogin = rememberLogin
+                RememberLogin = rememberLogin,
+                EmailSent = mailSent
             };
 
             return View(registerInputModel);
         }
         
         [HttpGet]
+        public async Task<IActionResult> ConfirmMail(string returnUrl, string email, string confirmToken)
+        {
+            var codeDecoded = Decode(confirmToken);
+            var returnUrlDecoded = Decode(returnUrl);
+            var user = await _userManager.FindByEmailAsync(email);
+            var login = new LoginInputModel
+            {
+                ReturnUrl = returnUrlDecoded,
+                Email = email
+            };
+            
+            if (user != null)
+            {
+                await _userManager.ConfirmEmailAsync(user, codeDecoded);
+                login.ConfirmedMail = true;
+                return RedirectToAction("Login", login);
+            }
+            
+            return RedirectToAction("Login", login);
+        }
+        
+        [HttpGet]
         public IActionResult ForgotPassword(string returnUrl, string email)
         {
-            var model = new ForgotPasswordInputModel
+            var model = new MailInputModel
             {
                 Email = email,
                 ReturnUrl = returnUrl
@@ -152,7 +176,7 @@ namespace IdentityServer.Quickstart.Account
         
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordInputModel model, string button)
+        public async Task<IActionResult> ForgotPassword(MailInputModel model, string button)
         {
             if (button == "cancel")
             {
@@ -165,9 +189,15 @@ namespace IdentityServer.Quickstart.Account
 
             var user = await _userManager.FindByEmailAsync(model.Email);
             var newPwToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var state = await SendMail(model, newPwToken);
+            
+            var codeEncoded = Encode(newPwToken);
+            var returnUrl = Encode(model.ReturnUrl);
+            var body = "Reset your password here: <br/>" +
+                        // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
+                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
+            var state = await SendMail(model.Email, body, "Reset password");
 
-            var newModel = new ForgotPasswordInputModel
+            var newModel = new MailInputModel
             {
                 ReturnUrl = model.ReturnUrl,
                 EmailSent = state
@@ -176,22 +206,27 @@ namespace IdentityServer.Quickstart.Account
             return View(newModel);
         }
 
-        private async Task<MailState> SendMail(ForgotPasswordInputModel model, string resetToken)
+        private async Task<MailState> SendMail(string email, string htmlBody, string subject)
         {
             try
             {
-                var codeEncoded = Encode(resetToken);
-                var returnUrl = Encode(model.ReturnUrl);
-
                 var mailMessage = new MimeMessage();
                 mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
-                mailMessage.To.Add(new MailboxAddress("reset password", model.Email));
-                mailMessage.Subject = "Reset password";
-                var bodyBuilder = new BodyBuilder();
-                bodyBuilder.HtmlBody = "Reset your password here: <br/>" +
-                                       // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
-                                       $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
-                
+                if (_isTestMode)
+                {
+                    mailMessage.To.Add(new MailboxAddress("reset password", "simonheiss87@gmail.com"));
+                }
+                else
+                {
+                    mailMessage.To.Add(new MailboxAddress("reset password", email));
+                }
+                mailMessage.To.Add(new MailboxAddress("reset password", email));
+                mailMessage.Subject = subject;
+                var bodyBuilder = new BodyBuilder
+                {
+                    HtmlBody = htmlBody
+                };
+
                 mailMessage.Body = bodyBuilder.ToMessageBody();
 
                 using var smtpClient = new SmtpClient();
@@ -219,8 +254,6 @@ namespace IdentityServer.Quickstart.Account
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterInputModel model, string button)
         {
-            var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
-
             if (button == "cancel")
             {
                 var login = new LoginInputModel
@@ -249,26 +282,48 @@ namespace IdentityServer.Quickstart.Account
                 {
                     UserName = model.Email,
                     Email = model.Email,
-                    Claims = claimsToAdd
+                    Claims = claimsToAdd,
                 };
 
                 var result = await _userManager.CreateAsync(account, model.Password);
 
                 if (result.Succeeded)
                 {
-                    return await LoginUser(new LoginInputModel
-                    {
-                        Email = model.Email,
-                        Password = model.Password,
-                        RememberLogin = model.RememberLogin,
-                        ReturnUrl = model.ReturnUrl
-                    }, account, context);
+                    var user1 = await _userManager.FindByEmailAsync(model.Email);
+                    return await SendRegisterMail(model, user1);
+                }
+
+                var user2 = await _userManager.FindByEmailAsync(model.Email);
+                if (user2 != null)
+                {
+                    return await SendRegisterMail(model, user2);
                 }
 
                 AddErrorsToModelState(result);
             }
 
             return View(model);
+        }
+
+        private async Task<IActionResult> SendRegisterMail(RegisterInputModel model, MongoUser user)
+        {
+            var newEmailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var codeEncoded = Encode(newEmailToken);
+            var returnUrl = Encode(model.ReturnUrl);
+            var body = "Confirm your email: <br/>" +
+                       // $"<a href=\"https://localhost:5001/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Confirm Email</a>";
+                       $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Confirm Email</a>";
+
+            await SendMail(model.Email, body, "Confirm registration on fading-flame.com");   
+            var register = new RegisterInputModel()
+            {
+                Email = model.Email,
+                Name = model.Name,
+                RememberLogin = model.RememberLogin,
+                ReturnUrl = model.ReturnUrl,
+                EmailSent = MailState.Sent
+            };
+            return RedirectToAction("ForgotPassword", register);
         }
 
         private void AddErrorsToModelState(IdentityResult result)
@@ -283,7 +338,6 @@ namespace IdentityServer.Quickstart.Account
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Login(LoginInputModel model, string button)
         {
-            // check if we are in the context of an authorization request
             var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
 
             if (button == "register")
@@ -298,7 +352,7 @@ namespace IdentityServer.Quickstart.Account
             
             if (button == "forgot-pw")
             {
-                var register = new ForgotPasswordInputModel
+                var register = new MailInputModel
                 {
                     Email = model.Email,
                     ReturnUrl = model.ReturnUrl
@@ -330,8 +384,6 @@ namespace IdentityServer.Quickstart.Account
         {
             await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserName, user.Id.ToString(), user.UserName, clientId: context?.Client.ClientId));
 
-            // only set explicit expiration here if user chooses "remember me". 
-            // otherwise we rely upon expiration configured in cookie middleware.
             AuthenticationProperties props = null;
             if (AccountOptions.AllowRememberLogin && model.RememberLogin)
             {
@@ -343,7 +395,6 @@ namespace IdentityServer.Quickstart.Account
                 };
             }
 
-            // issue authentication cookie with subject ID and username
             var isuser = new IdentityServerUser(user.Id.ToString())
             {
                 DisplayName = user.UserName,
@@ -355,16 +406,12 @@ namespace IdentityServer.Quickstart.Account
             {
                 if (context.IsNativeClient())
                 {
-                    // The client is native, so this change in how to
-                    // return the response is for better UX for the end user.
                     return this.LoadingPage("Redirect", model.ReturnUrl);
                 }
 
-                // we can trust model.ReturnUrl since GetAuthorizationContextAsync returned non-null
                 return Redirect(model.ReturnUrl);
             }
 
-            // request for a local page
             if (Url.IsLocalUrl(model.ReturnUrl))
             {
                 return Redirect(model.ReturnUrl);
@@ -398,29 +445,20 @@ namespace IdentityServer.Quickstart.Account
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout(LogoutInputModel model)
         {
-            // build a model so the logged out page knows what to display
             var vm = await BuildLoggedOutViewModelAsync(model.LogoutId);
 
             if (User?.Identity.IsAuthenticated == true)
             {
-                // delete local authentication cookie
                 await HttpContext.SignOutAsync();
-                // delete session from MS Identity
                 await HttpContext.SignOutAsync("Identity.Application");
 
-                // raise the logout event
                 await _events.RaiseAsync(new UserLogoutSuccessEvent(User.GetSubjectId(), User.GetDisplayName()));
             }
 
-            // check if we need to trigger sign-out at an upstream identity provider
             if (vm.TriggerExternalSignout)
             {
-                // build a return URL so the upstream provider will redirect back
-                // to us after the user has logged out. this allows us to then
-                // complete our single sign-out processing.
                 var url = Url.Action("Logout", new { logoutId = vm.LogoutId });
 
-                // this triggers a redirect to the external provider for sign-out
                 return SignOut(new AuthenticationProperties { RedirectUri = url }, vm.ExternalAuthenticationScheme);
             }
 
@@ -440,7 +478,6 @@ namespace IdentityServer.Quickstart.Account
             {
                 var local = context.IdP == IdentityServerConstants.LocalIdentityProvider;
 
-                // this is meant to short circuit the UI and only trigger the one external IdP
                 var vm = new LoginViewModel
                 {
                     EnableLocalLogin = local,
@@ -511,7 +548,6 @@ namespace IdentityServer.Quickstart.Account
 
             if (User?.Identity.IsAuthenticated != true)
             {
-                // if the user is not authenticated, then just show logged out page
                 vm.ShowLogoutPrompt = false;
                 return vm;
             }
@@ -519,19 +555,15 @@ namespace IdentityServer.Quickstart.Account
             var context = await _interaction.GetLogoutContextAsync(logoutId);
             if (context?.ShowSignoutPrompt == false)
             {
-                // it's safe to automatically sign-out
                 vm.ShowLogoutPrompt = false;
                 return vm;
             }
 
-            // show the logout prompt. this prevents attacks where the user
-            // is automatically signed out by another malicious web page.
             return vm;
         }
 
         private async Task<LoggedOutViewModel> BuildLoggedOutViewModelAsync(string logoutId)
         {
-            // get context information (client name, post logout redirect URI and iframe for federated signout)
             var logout = await _interaction.GetLogoutContextAsync(logoutId);
 
             var vm = new LoggedOutViewModel
@@ -553,9 +585,6 @@ namespace IdentityServer.Quickstart.Account
                     {
                         if (vm.LogoutId == null)
                         {
-                            // if there's no current logout context, we need to create one
-                            // this captures necessary info from the current logged in user
-                            // before we signout and redirect away to the external IdP for signout
                             vm.LogoutId = await _interaction.CreateLogoutContextAsync();
                         }
 

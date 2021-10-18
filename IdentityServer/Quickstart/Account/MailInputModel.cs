@@ -1,6 +1,6 @@
 namespace IdentityServer.Quickstart.Account
 {
-    public class ForgotPasswordInputModel
+    public class MailInputModel
     {
         public string ReturnUrl { get; set; }
         public string Email { get; set; }

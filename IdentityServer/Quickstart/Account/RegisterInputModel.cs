@@ -8,5 +8,6 @@ namespace IdentityServer.Quickstart.Account
         public string Name { get; set; }
         [Required]
         public string RepeatPassword { get; set; }
+        public MailState EmailSent { get; set; }
     }
 }
