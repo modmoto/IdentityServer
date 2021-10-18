@@ -220,7 +220,6 @@ namespace IdentityServer.Quickstart.Account
                 {
                     mailMessage.To.Add(new MailboxAddress("reset password", email));
                 }
-                mailMessage.To.Add(new MailboxAddress("reset password", email));
                 mailMessage.Subject = subject;
                 var bodyBuilder = new BodyBuilder
                 {
