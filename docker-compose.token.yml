@@ -11,6 +11,7 @@ services:
       - FADING_FLAME_SECRET=${FADING_FLAME_SECRET}
       - IDENTITY_BASE_URI=${IDENTITY_BASE_URI}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - IS_TEST_MODE=${IS_TEST_MODE}
   
   mongo-db:
     image: mongo
