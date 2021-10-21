@@ -86,7 +86,7 @@ namespace IdentityServer.Quickstart.Account
         [HttpGet]
         public async Task<IActionResult> ConfirmMail(string returnUrl, string email, string confirmToken, MailState mailSent)
         {
-            if (mailSent == MailState.Sent) 
+            if (mailSent != MailState.Sent) 
             {
                 var codeDecoded = Decode(confirmToken);
                 var returnUrlDecoded = Decode(returnUrl);
