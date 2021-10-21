@@ -1,4 +1,5 @@
-@model IdentityServer.Quickstart.Account.ConfirmViewModel
+@using IdentityServer.Quickstart.Account
+@model ConfirmViewModel
 
 <div class="login-container container">
     <partial name="_ValidationSummary" />
@@ -22,13 +23,14 @@
                 }
                 else
                 {
-                    if (Model.MailSent)
+                    if (Model.MailSent == MailState.Sent)
                     {
                         <div class="pt-3 pb-3 mt-3 alert alert-success text-center" role="alert">
                             Confirmation mail sent, please check your inbox
                         </div>
                     }
-                    else
+                    
+                    if (Model.MailSent == MailState.Error)
                     {
                         <div class="pt-3 pb-3 mt-3 alert alert-danger text-center" role="alert">
                             Email confirmation failed, please try again later or contact support!

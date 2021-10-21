@@ -84,13 +84,14 @@ namespace IdentityServer.Quickstart.Account
         }
         
         [HttpGet]
-        public async Task<IActionResult> ConfirmMail(string returnUrl, string email, string confirmToken, bool mailSent)
+        public async Task<IActionResult> ConfirmMail(string returnUrl, string email, string confirmToken, MailState mailSent)
         {
-            if (!mailSent)
+            if (mailSent != MailState.Sent)
             {
                 var codeDecoded = Decode(confirmToken);
                 var returnUrlDecoded = Decode(returnUrl);
-                var user = await _userManager.FindByEmailAsync(email);
+                var emailDecoded = Decode(email);
+                var user = await _userManager.FindByEmailAsync(emailDecoded);
                 var model = new ConfirmViewModel()
                 {
                     ReturnUrl = returnUrlDecoded,
@@ -117,8 +118,8 @@ namespace IdentityServer.Quickstart.Account
         {
             var loginViewModel = new LoginViewModel
             {
-                Email = viewModel.Email,
-                ReturnUrl = viewModel.ReturnUrl
+                Email = Decode(viewModel.Email),
+                ReturnUrl = Decode(viewModel.ReturnUrl)
             };
             return RedirectToAction("Login", loginViewModel);
         }
@@ -151,18 +152,12 @@ namespace IdentityServer.Quickstart.Account
             return View(model);
         }
 
-        private static string Decode(string resetToken)
-        {
-            var codeDecodedBytes = WebEncoders.Base64UrlDecode(resetToken);
-            var codeDecoded = Encoding.UTF8.GetString(codeDecodedBytes);
-            return codeDecoded;
-        }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ResetPassword(ResetPasswordInputModel model)
         {
-            var context = await _interaction.GetAuthorizationContextAsync(model.ReturnUrl);
+            var returnUrl = Decode(model.ReturnUrl);
+            var context = await _interaction.GetAuthorizationContextAsync(returnUrl);
 
             if (model.NewPassword != model.RepeatPassword)
             {
@@ -171,20 +166,24 @@ namespace IdentityServer.Quickstart.Account
 
             if (ModelState.IsValid)
             {
-                var user = await _userManager.FindByEmailAsync(model.Email);
-                var passwordChangeResult = await _userManager.ResetPasswordAsync(user, model.PasswordResetToken, model.NewPassword);
-                if (passwordChangeResult.Succeeded)
+                var email = Decode(model.Email);
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user != null)
                 {
-                    var loginInputModel = new LoginInputModel
+                    var passwordChangeResult = await _userManager.ResetPasswordAsync(user, model.PasswordResetToken, model.NewPassword);
+                    if (passwordChangeResult.Succeeded)
                     {
-                        Password = model.NewPassword,
-                        Email = model.Email,
-                        ReturnUrl = Decode(model.ReturnUrl)
-                    };
-                    return await LoginUser(loginInputModel, user, context);
-                }
+                        var loginInputModel = new LoginInputModel
+                        {
+                            Password = model.NewPassword,
+                            Email = email,
+                            ReturnUrl = returnUrl
+                        };
+                        return await LoginUser(loginInputModel, user, context);
+                    }
 
-                AddErrorsToModelState(passwordChangeResult);
+                    AddErrorsToModelState(passwordChangeResult);
+                }
             }
             
             return View(model);
@@ -208,9 +207,10 @@ namespace IdentityServer.Quickstart.Account
             
             var codeEncoded = Encode(newPwToken);
             var returnUrl = Encode(model.ReturnUrl);
+            var mailEncoded = Encode(model.Email);
             var body = "Reset your password here: <br/>" +
-                        $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
-                        // $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Reset password</a>";
+                        // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={mailEncoded}\">Reset password</a>";
+                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={mailEncoded}\">Reset password</a>";
             var state = await SendMail(model.Email, body, "Reset password");
 
             var newModel = new MailInputModel
@@ -244,7 +244,7 @@ namespace IdentityServer.Quickstart.Account
 
                 mailMessage.Body = bodyBuilder.ToMessageBody();
 
-                using var smtpClient = new SmtpClient();
+                var smtpClient = new SmtpClient();
                 await smtpClient.ConnectAsync("smtp.strato.de", 465, true);
                 await smtpClient.AuthenticateAsync("info@fading-flame.com", Environment.GetEnvironmentVariable("MAIL_PASSWORD"));
                 await smtpClient.SendAsync(mailMessage);
@@ -256,13 +256,6 @@ namespace IdentityServer.Quickstart.Account
             {
                 return MailState.Error;
             }
-        }
-
-        private static string Encode(string resetToken)
-        {
-            var tokenGeneratedBytes = Encoding.UTF8.GetBytes(resetToken);
-            var codeEncoded = WebEncoders.Base64UrlEncode(tokenGeneratedBytes);
-            return codeEncoded;
         }
 
         [HttpPost]
@@ -300,51 +293,30 @@ namespace IdentityServer.Quickstart.Account
                     Claims = claimsToAdd,
                 };
 
-                var result = await _userManager.CreateAsync(account, model.Password);
-
-                if (result.Succeeded)
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user == null)
                 {
-                    var user1 = await _userManager.FindByEmailAsync(model.Email);
-                    return await SendRegisterMail(model, user1);
+                    var result = await _userManager.CreateAsync(account, model.Password);
+                    if (result.Succeeded)
+                    {
+                        var userCreated = await _userManager.FindByEmailAsync(model.Email);
+                        return await SendRegisterMail(model, userCreated);
+                    }
+                    
+                    AddErrorsToModelState(result);
                 }
-
-                var user2 = await _userManager.FindByEmailAsync(model.Email);
-                if (user2 != null)
+                else
                 {
-                    return await SendRegisterMail(model, user2);
+                    if (!user.EmailConfirmed)
+                    {
+                        return await SendRegisterMail(model, user);
+                    }
+                    
+                    ModelState.AddModelError("UserExists", "This email is already registered, try loging in or resetting the password");
                 }
-
-                AddErrorsToModelState(result);
             }
 
             return View(model);
-        }
-
-        private async Task<IActionResult> SendRegisterMail(RegisterInputModel model, MongoUser user)
-        {
-            var newEmailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var codeEncoded = Encode(newEmailToken);
-            var returnUrl = Encode(model.ReturnUrl);
-            var body = "Confirm your email: <br/>" +
-                       // $"<a href=\"https://localhost:5001/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Confirm Email</a>";
-                       $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={model.Email}\">Confirm Email</a>";
-
-            await SendMail(model.Email, body, "Confirm registration on fading-flame.com");   
-            var register = new ConfirmViewModel()
-            {
-                Email = model.Email,
-                ReturnUrl = model.ReturnUrl,
-                MailSent = true
-            };
-            return RedirectToAction("ConfirmMail", register);
-        }
-
-        private void AddErrorsToModelState(IdentityResult result)
-        {
-            foreach (var identityError in result.Errors)
-            {
-                ModelState.AddModelError(identityError.Code, identityError.Description);
-            }
         }
 
         [HttpPost]
@@ -393,6 +365,49 @@ namespace IdentityServer.Quickstart.Account
             return View(vm);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> Logout(string logoutId)
+        {
+            var vm = await BuildLogoutViewModelAsync(logoutId);
+
+            if (vm.ShowLogoutPrompt == false)
+            {
+                return await Logout(vm);
+            }
+
+            return View(vm);
+        }
+        
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Logout(LogoutInputModel model)
+        {
+            var vm = await BuildLoggedOutViewModelAsync(model.LogoutId);
+
+            if (User?.Identity.IsAuthenticated == true)
+            {
+                await HttpContext.SignOutAsync();
+                await HttpContext.SignOutAsync("Identity.Application");
+
+                await _events.RaiseAsync(new UserLogoutSuccessEvent(User.GetSubjectId(), User.GetDisplayName()));
+            }
+
+            if (vm.TriggerExternalSignout)
+            {
+                var url = Url.Action("Logout", new { logoutId = vm.LogoutId });
+
+                return SignOut(new AuthenticationProperties { RedirectUri = url }, vm.ExternalAuthenticationScheme);
+            }
+
+            return Redirect(vm.PostLogoutRedirectUri ?? "/");
+        }
+
+        [HttpGet]
+        public IActionResult AccessDenied()
+        {
+            return View();
+        }
+        
         private async Task<IActionResult> LoginUser(LoginInputModel model, MongoUser user, AuthorizationRequest context)
         {
             await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserName, user.Id.ToString(), user.UserName, clientId: context?.Client.ClientId));
@@ -436,49 +451,6 @@ namespace IdentityServer.Quickstart.Account
             }
 
             throw new Exception("invalid return URL");
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> Logout(string logoutId)
-        {
-            var vm = await BuildLogoutViewModelAsync(logoutId);
-
-            if (vm.ShowLogoutPrompt == false)
-            {
-                return await Logout(vm);
-            }
-
-            return View(vm);
-        }
-        
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Logout(LogoutInputModel model)
-        {
-            var vm = await BuildLoggedOutViewModelAsync(model.LogoutId);
-
-            if (User?.Identity.IsAuthenticated == true)
-            {
-                await HttpContext.SignOutAsync();
-                await HttpContext.SignOutAsync("Identity.Application");
-
-                await _events.RaiseAsync(new UserLogoutSuccessEvent(User.GetSubjectId(), User.GetDisplayName()));
-            }
-
-            if (vm.TriggerExternalSignout)
-            {
-                var url = Url.Action("Logout", new { logoutId = vm.LogoutId });
-
-                return SignOut(new AuthenticationProperties { RedirectUri = url }, vm.ExternalAuthenticationScheme);
-            }
-
-            return Redirect(vm.PostLogoutRedirectUri ?? "/");
-        }
-
-        [HttpGet]
-        public IActionResult AccessDenied()
-        {
-            return View();
         }
 
         private async Task<LoginViewModel> BuildLoginViewModelAsync(string returnUrl, string email)
@@ -546,6 +518,14 @@ namespace IdentityServer.Quickstart.Account
                 Email = email,
             };
         }
+        
+        private void AddErrorsToModelState(IdentityResult result)
+        {
+            foreach (var identityError in result.Errors)
+            {
+                ModelState.AddModelError(identityError.Code, identityError.Description);
+            }
+        }
 
         private async Task<LoginViewModel> BuildLoginViewModelAsync(LoginInputModel model)
         {
@@ -573,7 +553,7 @@ namespace IdentityServer.Quickstart.Account
 
             return vm;
         }
-
+        
         private async Task<LoggedOutViewModel> BuildLoggedOutViewModelAsync(string logoutId)
         {
             var logout = await _interaction.GetLogoutContextAsync(logoutId);
@@ -606,6 +586,41 @@ namespace IdentityServer.Quickstart.Account
             }
 
             return vm;
+        }
+        
+        private static string Encode(string resetToken)
+        {
+            var tokenGeneratedBytes = Encoding.UTF8.GetBytes(resetToken);
+            var codeEncoded = WebEncoders.Base64UrlEncode(tokenGeneratedBytes);
+            return codeEncoded;
+        }
+        
+        private static string Decode(string resetToken)
+        {
+            var codeDecodedBytes = WebEncoders.Base64UrlDecode(resetToken);
+            var codeDecoded = Encoding.UTF8.GetString(codeDecodedBytes);
+            return codeDecoded;
+        }
+        
+        
+        private async Task<IActionResult> SendRegisterMail(RegisterInputModel model, MongoUser user)
+        {
+            var newEmailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var codeEncoded = Encode(newEmailToken);
+            var returnUrl = Encode(model.ReturnUrl);
+            var mail = Encode(model.Email);
+            var body = "Confirm your email: <br/>" +
+                       // $"<a href=\"https://localhost:5001/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={mail}\">Confirm Email</a>";
+                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={mail}\">Confirm Email</a>";
+
+            var result = await SendMail(model.Email, body, "Confirm registration on fading-flame.com");   
+            var register = new ConfirmViewModel()
+            {
+                Email = model.Email,
+                ReturnUrl = model.ReturnUrl,
+                MailSent = result
+            };
+            return RedirectToAction("ConfirmMail", register);
         }
     }
 }
