@@ -1,0 +1,38 @@
+@using IdentityServer.Quickstart.Account
+@model ConfirmViewModel
+
+<div class="login-container container">
+    <partial name="_ValidationSummary" />
+
+    <div class="row">
+
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                @if (Model.ConfirmedMail)
+                {
+                    <div class="pt-3 pb-3 mt-3 alert alert-success text-center" role="alert">
+                        Email confirmed, please login!
+                    </div>
+                    <form asp-route="Login">
+                        <input type="hidden" asp-for="Email"/>
+                        <input type="hidden" asp-for="ReturnUrl"/>
+
+                        <button class="btn btn-primary" name="button" value="go-to-login">Go to login</button>
+                    </form>
+                }
+                else
+                {
+                    if (Model.MailSent == MailState.Sent)
+                    {
+                        <div class="pt-3 pb-3 mt-3 alert alert-success text-center" role="alert">
+                            Confirmation mail sent, please check your inbox
+                        </div>
+                    }
+                }
+                
+            </div>
+        </div>
+    </div>
+</div>
+</div>
