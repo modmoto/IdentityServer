@@ -312,7 +312,7 @@ namespace IdentityServer.Quickstart.Account
                         return await SendRegisterMail(model, user);
                     }
                     
-                    ModelState.AddModelError("UserExists", "This email is already registered, try loging in or resetting the password");
+                    ModelState.AddModelError("UserExists", "This email is already registered, try logging in or resetting the password");
                 }
             }
 
