@@ -86,7 +86,7 @@ namespace IdentityServer.Quickstart.Account
         [HttpGet]
         public async Task<IActionResult> ConfirmMail(string returnUrl, string email, string confirmToken, MailState mailSent)
         {
-            if (mailSent != MailState.Sent)
+            if (mailSent == MailState.Sent) 
             {
                 var codeDecoded = Decode(confirmToken);
                 var returnUrlDecoded = Decode(returnUrl);
@@ -244,7 +244,7 @@ namespace IdentityServer.Quickstart.Account
 
                 mailMessage.Body = bodyBuilder.ToMessageBody();
 
-                var smtpClient = new SmtpClient();
+                using var smtpClient = new SmtpClient();
                 await smtpClient.ConnectAsync("smtp.strato.de", 465, true);
                 await smtpClient.AuthenticateAsync("info@fading-flame.com", Environment.GetEnvironmentVariable("MAIL_PASSWORD"));
                 await smtpClient.SendAsync(mailMessage);
@@ -614,13 +614,20 @@ namespace IdentityServer.Quickstart.Account
                         $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={mail}\">Confirm Email</a>";
 
             var result = await SendMail(model.Email, body, "Confirm registration on fading-flame.com");   
-            var register = new ConfirmViewModel()
+            var confirmViewModel = new ConfirmViewModel()
             {
                 Email = model.Email,
                 ReturnUrl = model.ReturnUrl,
                 MailSent = result
             };
-            return RedirectToAction("ConfirmMail", register);
+
+            if (result == MailState.Error)
+            {
+                ModelState.AddModelError("SendingMailFailed", "Email confirmation failed, please try again later or contact support!");
+                return View(model);
+            }
+            
+            return RedirectToAction("ConfirmMail", confirmViewModel);
         }
     }
 }
