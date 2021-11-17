@@ -211,7 +211,7 @@ namespace IdentityServer.Quickstart.Account
             var body = "Reset your password here: <br/>" +
                         // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={mailEncoded}\">Reset password</a>";
                         $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={mailEncoded}\">Reset password</a>";
-            var state = await SendMail(model.Email, body, "Reset password");
+            var state = await SendMail(model.Email, body, "Reset password", false);
 
             var newModel = new MailInputModel
             {
@@ -222,7 +222,7 @@ namespace IdentityServer.Quickstart.Account
             return View(newModel);
         }
 
-        private async Task<MailState> SendMail(string email, string htmlBody, string subject)
+        private async Task<MailState> SendMail(string email, string htmlBody, string subject, bool sendBccCopy)
         {
             try
             {
@@ -230,12 +230,18 @@ namespace IdentityServer.Quickstart.Account
                 mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
                 if (_isTestMode)
                 {
-                    mailMessage.To.Add(new MailboxAddress("reset password", "simonheiss87@gmail.com"));
+                    mailMessage.To.Add(new MailboxAddress(email, "simonheiss87@gmail.com"));
                 }
                 else
                 {
-                    mailMessage.To.Add(new MailboxAddress("reset password", email));
+                    mailMessage.To.Add(new MailboxAddress(email, email));
                 }
+
+                if (sendBccCopy)
+                {
+                    mailMessage.Bcc.Add(new MailboxAddress(email, "simonheiss87@gmail.com"));                    
+                }
+                
                 mailMessage.Subject = subject;
                 var bodyBuilder = new BodyBuilder
                 {
@@ -613,7 +619,7 @@ namespace IdentityServer.Quickstart.Account
                        // $"<a href=\"https://localhost:5001/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={mail}\">Confirm Email</a>";
                         $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={mail}\">Confirm Email</a>";
 
-            var result = await SendMail(model.Email, body, "Confirm registration on fading-flame.com");   
+            var result = await SendMail(model.Email, body, "Confirm registration on fading-flame.com", true);   
             var confirmViewModel = new ConfirmViewModel()
             {
                 Email = model.Email,
