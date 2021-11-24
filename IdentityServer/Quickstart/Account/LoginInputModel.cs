@@ -9,7 +9,6 @@ namespace IdentityServer.Quickstart.Account
         [Required]
         [EmailAddress]
         public string Email { get; set; }
-        public bool RememberLogin { get; set; }
         public string ReturnUrl { get; set; }
     }
 }

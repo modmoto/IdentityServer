@@ -71,12 +71,11 @@ namespace IdentityServer.Quickstart.Account
         }
         
         [HttpGet]
-        public IActionResult Register(string returnUrl, bool rememberLogin, MailState mailSent)
+        public IActionResult Register(string returnUrl, MailState mailSent)
         {
             var registerInputModel = new RegisterInputModel
             {
                 ReturnUrl = returnUrl,
-                RememberLogin = rememberLogin,
                 EmailSent = mailSent
             };
 
@@ -272,7 +271,6 @@ namespace IdentityServer.Quickstart.Account
             {
                 var login = new LoginInputModel
                 {
-                    RememberLogin = model.RememberLogin,
                     ReturnUrl = model.ReturnUrl
                 };
                 return RedirectToAction("Login", login);
@@ -335,7 +333,6 @@ namespace IdentityServer.Quickstart.Account
             {
                 var register = new RegisterInputModel
                 {
-                    RememberLogin = model.RememberLogin,
                     ReturnUrl = model.ReturnUrl
                 };
                 return RedirectToAction("Register", register);
@@ -367,7 +364,7 @@ namespace IdentityServer.Quickstart.Account
                 ModelState.Remove("Email");
             }
 
-            var vm = await BuildLoginViewModelAsync(model);
+            var vm = await BuildLoginViewModelAsync(model.ReturnUrl, model.Email);
             return View(vm);
         }
 
@@ -418,16 +415,12 @@ namespace IdentityServer.Quickstart.Account
         {
             await _events.RaiseAsync(new UserLoginSuccessEvent(user.UserName, user.Id.ToString(), user.UserName, clientId: context?.Client.ClientId));
 
-            AuthenticationProperties props = null;
-            if (AccountOptions.AllowRememberLogin && model.RememberLogin)
+            var props = new AuthenticationProperties
             {
-                props = new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    AllowRefresh = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.Add(AccountOptions.RememberMeLoginDuration)
-                };
-            }
+                IsPersistent = true,
+                AllowRefresh = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.Add(TimeSpan.FromDays(30))
+            };
 
             var isuser = new IdentityServerUser(user.Id.ToString())
             {
@@ -517,7 +510,6 @@ namespace IdentityServer.Quickstart.Account
 
             return new LoginViewModel
             {
-                AllowRememberLogin = AccountOptions.AllowRememberLogin,
                 EnableLocalLogin = allowLocal && AccountOptions.AllowLocalLogin,
                 ReturnUrl = returnUrl,
                 ExternalProviders = providers.ToArray(),
@@ -531,13 +523,6 @@ namespace IdentityServer.Quickstart.Account
             {
                 ModelState.AddModelError(identityError.Code, identityError.Description);
             }
-        }
-
-        private async Task<LoginViewModel> BuildLoginViewModelAsync(LoginInputModel model)
-        {
-            var vm = await BuildLoginViewModelAsync(model.ReturnUrl, model.Email);
-            vm.RememberLogin = model.RememberLogin;
-            return vm;
         }
 
         private async Task<LogoutViewModel> BuildLogoutViewModelAsync(string logoutId)
