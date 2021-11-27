@@ -1,0 +1,12 @@
+﻿@model IdentityServer.Quickstart.Mail.NewAccountMail
+
+@{
+    Layout = "_EmailLayout";
+}
+
+<div>
+    Hi @Model.Name,
+</div>
+<div>
+    <a href="@Model.VerifyLink">Verify email</a>
+</div>
