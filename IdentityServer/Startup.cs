@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using AspNetCore.Identity.Mongo;
 using AspNetCore.Identity.Mongo.Model;
+using IdentityServer.Quickstart.Mail;
 using Microsoft.AspNetCore.Identity;
 
 namespace IdentityServer
@@ -20,6 +21,8 @@ namespace IdentityServer
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddTransient<IMailService, MailService>();
+            services.AddTransient<IMailRenderer, MailRenderer>();
             services.AddControllersWithViews();
 
             services.AddIdentityMongoDbProvider<MongoUser, MongoRole>(identityOptions =>
