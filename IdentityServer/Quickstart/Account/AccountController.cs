@@ -13,15 +13,12 @@ using Duende.IdentityServer.Services;
 using Duende.IdentityServer.Stores;
 using IdentityModel;
 using IdentityServer.Quickstart.Mail;
-using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.WebUtilities;
-using MimeKit;
 
 namespace IdentityServer.Quickstart.Account
 {
@@ -32,13 +29,12 @@ namespace IdentityServer.Quickstart.Account
         private readonly IUserStore<MongoUser> _userStore;
         private readonly UserManager<MongoUser> _userManager;
         private readonly ILookupNormalizer _lookupNormalizer;
-        private readonly IMailRenderer  _emailEngine;
+        private readonly IMailService _mailService;
         private readonly IIdentityServerInteractionService _interaction;
         private readonly IClientStore _clientStore;
         private readonly IAuthenticationSchemeProvider _schemeProvider;
         private readonly IIdentityProviderStore _identityProviderStore;
         private readonly IEventService _events;
-        private readonly bool _isTestMode = string.Equals(Environment.GetEnvironmentVariable("IS_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
 
         public AccountController(
             IIdentityServerInteractionService interaction,
@@ -49,7 +45,7 @@ namespace IdentityServer.Quickstart.Account
             IUserStore<MongoUser> userStore, 
             UserManager<MongoUser> userManager,
             ILookupNormalizer lookupNormalizer,
-            IMailRenderer  emailEngine)
+            IMailService mailService)
         {
             _interaction = interaction;
             _clientStore = clientStore;
@@ -59,7 +55,7 @@ namespace IdentityServer.Quickstart.Account
             _userStore = userStore;
             _userManager = userManager;
             _lookupNormalizer = lookupNormalizer;
-            _emailEngine = emailEngine;
+            _mailService = mailService;
         }
 
         [HttpGet]
@@ -209,7 +205,7 @@ namespace IdentityServer.Quickstart.Account
             var user = await _userManager.FindByEmailAsync(model.Email);
             var newPwToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             
-            var state = await SendMail(model.Email, null, "Reset password", false, new ResetPasswordMailModel(newPwToken, model.ReturnUrl, model.Email));
+            var state = await _mailService.SendMail(model.Email, null, false, new ResetPasswordMailModelBase(newPwToken, model.ReturnUrl, model.Email));
 
             var newModel = new MailInputModel
             {
@@ -218,49 +214,6 @@ namespace IdentityServer.Quickstart.Account
             };
             
             return View(newModel);
-        }
-
-        private async Task<MailState> SendMail<T>(string email, string name, string subject, bool sendBccCopy, T mailBody)
-        {
-            try
-            {
-                var emailText = await _emailEngine.RenderViewToStringAsync("/Views/Emails/NewAccountMail.cshtml", mailBody);
-                var mailMessage = new MimeMessage();
-                mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
-                if (_isTestMode)
-                {
-                    mailMessage.To.Add(new MailboxAddress("simonheiss87@gmail.com", "simonheiss87@gmail.com"));
-                }
-                else
-                {
-                    mailMessage.To.Add(new MailboxAddress(name ?? email, email));
-                }
-
-                if (sendBccCopy)
-                {
-                    mailMessage.Bcc.Add(new MailboxAddress("Simon", "simonheiss87@gmail.com"));                    
-                }
-                
-                mailMessage.Subject = subject;
-                var bodyBuilder = new BodyBuilder
-                {
-                    HtmlBody = emailText
-                };
-
-                mailMessage.Body = bodyBuilder.ToMessageBody();
-
-                using var smtpClient = new SmtpClient();
-                await smtpClient.ConnectAsync("smtp.strato.de", 465, true);
-                await smtpClient.AuthenticateAsync("info@fading-flame.com", Environment.GetEnvironmentVariable("MAIL_PASSWORD"));
-                await smtpClient.SendAsync(mailMessage);
-                await smtpClient.DisconnectAsync(true);
-
-                return MailState.Sent;
-            }
-            catch (Exception)
-            {
-                return MailState.Error;
-            }
         }
 
         [HttpPost]
@@ -598,7 +551,7 @@ namespace IdentityServer.Quickstart.Account
         {
             var newEmailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
-            var result = await SendMail(model.Email, model.Name, "Confirm registration on fading-flame.com", true, new NewAccountMail(model.Name, newEmailToken, model.ReturnUrl, model.Email));   
+            var result = await _mailService.SendMail(model.Email, model.Name, true, new NewAccountMail(model.Name, newEmailToken, model.ReturnUrl, model.Email));   
             var confirmViewModel = new ConfirmViewModel()
             {
                 Email = model.Email,
