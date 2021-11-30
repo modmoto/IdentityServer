@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using IdentityServer.Quickstart.Account;
 using MailKit.Net.Smtp;
+using Microsoft.Extensions.Logging;
 using MimeKit;
 
 namespace IdentityServer.Quickstart.Mail
@@ -13,13 +14,15 @@ namespace IdentityServer.Quickstart.Mail
 
     public class MailService : IMailService
     {
-        private readonly IMailRenderer _emailEngine;        
+        private readonly IMailRenderer _emailEngine;
+        private readonly ILogger _logger;
         private readonly bool _isTestMode = string.Equals(Environment.GetEnvironmentVariable("IS_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
 
 
-        public MailService(IMailRenderer emailEngine)
+        public MailService(IMailRenderer emailEngine, ILogger<IMailService> logger)
         {
             _emailEngine = emailEngine;
+            _logger = logger;
         }
         
         public async Task<MailState> SendMail<T>(string email, string name, bool sendBccCopy, T mailBody) where T : IMail
@@ -59,8 +62,9 @@ namespace IdentityServer.Quickstart.Mail
 
                 return MailState.Sent;
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                _logger.LogError(e, "Mail sending failed");
                 return MailState.Error;
             }
         }
