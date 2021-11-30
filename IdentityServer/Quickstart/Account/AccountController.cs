@@ -205,7 +205,7 @@ namespace IdentityServer.Quickstart.Account
             var user = await _userManager.FindByEmailAsync(model.Email);
             var newPwToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             
-            var state = await _mailService.SendMail(model.Email, null, false, new ResetPasswordMailModelBase(newPwToken, model.ReturnUrl, model.Email));
+            var state = await _mailService.SendMail(model.Email, new ResetPasswordMailModel(newPwToken, model.ReturnUrl, model.Email));
 
             var newModel = new MailInputModel
             {
@@ -551,7 +551,7 @@ namespace IdentityServer.Quickstart.Account
         {
             var newEmailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
-            var result = await _mailService.SendMail(model.Email, model.Name, true, new NewAccountMail(model.Name, newEmailToken, model.ReturnUrl, model.Email));   
+            var result = await _mailService.SendMail(model.Email, new NewAccountMail(model.Name, newEmailToken, model.ReturnUrl, model.Email));   
             var confirmViewModel = new ConfirmViewModel()
             {
                 Email = model.Email,

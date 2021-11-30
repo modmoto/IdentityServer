@@ -2,11 +2,11 @@
 
 namespace IdentityServer.Quickstart.Mail
 {
-    public class ResetPasswordMailModelBase : MailModelBase
+    public class ResetPasswordMailModel : MailModelBase
     {
         public string ResetPasswordLink { get; }
 
-        public ResetPasswordMailModelBase(string resetCode, string returnUrl, string mail) : base("Reset password")
+        public ResetPasswordMailModel(string resetCode, string returnUrl, string mail) : base("Reset password")
         {
             var codeEncoded = Encode(resetCode);
             var returnUrlEncoded = Encode(returnUrl);

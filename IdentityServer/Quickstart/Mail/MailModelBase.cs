@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace IdentityServer.Quickstart.Mail
 {
-    public class MailModelBase : IMail
+    public class MailModelBase
     {
         public MailModelBase(string subject)
         {
