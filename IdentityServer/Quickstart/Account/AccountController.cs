@@ -203,16 +203,20 @@ namespace IdentityServer.Quickstart.Account
             }
 
             var user = await _userManager.FindByEmailAsync(model.Email);
-            var newPwToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-            
-            var state = await _mailService.SendMail(model.Email, new ResetPasswordMailModel(newPwToken, model.ReturnUrl, model.Email));
-
             var newModel = new MailInputModel
             {
                 ReturnUrl = model.ReturnUrl,
-                EmailSent = state
             };
             
+            if (user != null)
+            {
+                var newPwToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var state = await _mailService.SendMail(model.Email, new ResetPasswordMailModel(newPwToken, model.ReturnUrl, model.Email));
+                newModel.EmailSent = state;
+                return View(newModel);
+            }
+
+            newModel.EmailSent = MailState.Sent;
             return View(newModel);
         }
 
