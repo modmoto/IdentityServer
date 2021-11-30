@@ -12,14 +12,13 @@ using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Services;
 using Duende.IdentityServer.Stores;
 using IdentityModel;
-using MailKit.Net.Smtp;
+using IdentityServer.Quickstart.Mail;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using MimeKit;
 
 namespace IdentityServer.Quickstart.Account
 {
@@ -30,12 +29,12 @@ namespace IdentityServer.Quickstart.Account
         private readonly IUserStore<MongoUser> _userStore;
         private readonly UserManager<MongoUser> _userManager;
         private readonly ILookupNormalizer _lookupNormalizer;
+        private readonly IMailService _mailService;
         private readonly IIdentityServerInteractionService _interaction;
         private readonly IClientStore _clientStore;
         private readonly IAuthenticationSchemeProvider _schemeProvider;
         private readonly IIdentityProviderStore _identityProviderStore;
         private readonly IEventService _events;
-        private readonly bool _isTestMode = string.Equals(Environment.GetEnvironmentVariable("IS_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
 
         public AccountController(
             IIdentityServerInteractionService interaction,
@@ -45,7 +44,8 @@ namespace IdentityServer.Quickstart.Account
             IEventService events,
             IUserStore<MongoUser> userStore, 
             UserManager<MongoUser> userManager,
-            ILookupNormalizer lookupNormalizer)
+            ILookupNormalizer lookupNormalizer,
+            IMailService mailService)
         {
             _interaction = interaction;
             _clientStore = clientStore;
@@ -55,6 +55,7 @@ namespace IdentityServer.Quickstart.Account
             _userStore = userStore;
             _userManager = userManager;
             _lookupNormalizer = lookupNormalizer;
+            _mailService = mailService;
         }
 
         [HttpGet]
@@ -204,13 +205,7 @@ namespace IdentityServer.Quickstart.Account
             var user = await _userManager.FindByEmailAsync(model.Email);
             var newPwToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             
-            var codeEncoded = Encode(newPwToken);
-            var returnUrl = Encode(model.ReturnUrl);
-            var mailEncoded = Encode(model.Email);
-            var body = "Reset your password here: <br/>" +
-                        // $"<a href=\"https://localhost:5001/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={mailEncoded}\">Reset password</a>";
-                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ResetPassword?resetToken={codeEncoded}&returnUrl={returnUrl}&email={mailEncoded}\">Reset password</a>";
-            var state = await SendMail(model.Email, model.Email, body, "Reset password", false);
+            var state = await _mailService.SendMail(model.Email, null, false, new ResetPasswordMailModelBase(newPwToken, model.ReturnUrl, model.Email));
 
             var newModel = new MailInputModel
             {
@@ -219,48 +214,6 @@ namespace IdentityServer.Quickstart.Account
             };
             
             return View(newModel);
-        }
-
-        private async Task<MailState> SendMail(string email, string name, string htmlBody, string subject, bool sendBccCopy)
-        {
-            try
-            {
-                var mailMessage = new MimeMessage();
-                mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
-                if (_isTestMode)
-                {
-                    mailMessage.To.Add(new MailboxAddress(name, "simonheiss87@gmail.com"));
-                }
-                else
-                {
-                    mailMessage.To.Add(new MailboxAddress(name, email));
-                }
-
-                if (sendBccCopy)
-                {
-                    mailMessage.Bcc.Add(new MailboxAddress(name, "simonheiss87@gmail.com"));                    
-                }
-                
-                mailMessage.Subject = subject;
-                var bodyBuilder = new BodyBuilder
-                {
-                    HtmlBody = htmlBody
-                };
-
-                mailMessage.Body = bodyBuilder.ToMessageBody();
-
-                using var smtpClient = new SmtpClient();
-                await smtpClient.ConnectAsync("smtp.strato.de", 465, true);
-                await smtpClient.AuthenticateAsync("info@fading-flame.com", Environment.GetEnvironmentVariable("MAIL_PASSWORD"));
-                await smtpClient.SendAsync(mailMessage);
-                await smtpClient.DisconnectAsync(true);
-
-                return MailState.Sent;
-            }
-            catch (Exception)
-            {
-                return MailState.Error;
-            }
         }
 
         [HttpPost]
@@ -597,14 +550,8 @@ namespace IdentityServer.Quickstart.Account
         private async Task<IActionResult> SendRegisterMail(RegisterInputModel model, MongoUser user)
         {
             var newEmailToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var codeEncoded = Encode(newEmailToken);
-            var returnUrl = Encode(model.ReturnUrl);
-            var mail = Encode(model.Email);
-            var body = "Confirm your email: <br/>" +
-                       // $"<a href=\"https://localhost:5001/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={mail}\">Confirm Email</a>";
-                        $"<a href=\"https://{Environment.GetEnvironmentVariable("IDENTITY_BASE_URI")}/Account/ConfirmMail?confirmToken={codeEncoded}&returnUrl={returnUrl}&email={mail}\">Confirm Email</a>";
 
-            var result = await SendMail(model.Email, model.Name, body, "Confirm registration on fading-flame.com", true);   
+            var result = await _mailService.SendMail(model.Email, model.Name, true, new NewAccountMail(model.Name, newEmailToken, model.ReturnUrl, model.Email));   
             var confirmViewModel = new ConfirmViewModel()
             {
                 Email = model.Email,
