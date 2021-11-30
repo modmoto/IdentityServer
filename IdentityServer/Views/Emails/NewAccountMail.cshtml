@@ -1,12 +1,20 @@
 ﻿@model IdentityServer.Quickstart.Mail.NewAccountMail
 
 @{
-    Layout = "_EmailLayout";
+  Layout = "_EmailLayout";
 }
 
 <div>
-    Hi @Model.Name,
+  Hi @Model.Name,
 </div>
+<br/>
 <div>
-    <a href="@Model.VerifyLink">Verify email</a>
+  welcome to the fading flame league! To complete your registration, click the link below:
+</div>
+<br/>
+<a class="btn btn-primary" href="@Model.VerifyLink">Verify email</a>
+<br>
+<br>
+<div>
+  see you on the battlefield =)
 </div>
