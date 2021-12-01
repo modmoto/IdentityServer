@@ -17,5 +17,12 @@
     <Folder Include="wwwroot\css" />
   </ItemGroup>
   
+  <ItemGroup>
+    <None Remove="Views\Emails\logo_ligismall.jpg" />
+    <Content Include="Views\Emails\logo_ligismall.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  
   <ProjectExtensions><VisualStudio><UserProperties properties_4launchsettings_1json__JsonSchema="" /></VisualStudio></ProjectExtensions>
 </Project>

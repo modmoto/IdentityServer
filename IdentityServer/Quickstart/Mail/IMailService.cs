@@ -1,9 +1,12 @@
 ﻿using System;
+using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using IdentityServer.Quickstart.Account;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
 using MimeKit;
+using MimeKit.Utils;
 
 namespace IdentityServer.Quickstart.Mail
 {
@@ -30,8 +33,7 @@ namespace IdentityServer.Quickstart.Mail
         {
             try
             {
-                var emailText = await _emailEngine.RenderViewToStringAsync("/Views/Emails/NewAccountMail.cshtml", mailBody);
-                return await SendMailForReal(email, mailBody.Name, mailBody.Subject, true, emailText);
+                return await SendMailForReal(email, mailBody.Name, mailBody.Subject, true, "/Views/Emails/NewAccountMail.cshtml", mailBody);
             }
             catch (Exception e)
             {
@@ -44,8 +46,7 @@ namespace IdentityServer.Quickstart.Mail
         {
             try
             {
-                var emailText = await _emailEngine.RenderViewToStringAsync("/Views/Emails/ResetPasswordAccountMail.cshtml", mailBody);
-                return await SendMailForReal(email, email, mailBody.Subject, true, emailText);
+                return await SendMailForReal(email, email, mailBody.Subject, true, "/Views/Emails/ResetPasswordAccountMail.cshtml", mailBody);
             }
             catch (Exception e)
             {
@@ -54,9 +55,18 @@ namespace IdentityServer.Quickstart.Mail
             }
         }
 
-        private async Task<MailState> SendMailForReal(string email, string name, string subject, bool sendBccCopy, string emailText)
+        private async Task<MailState> SendMailForReal<T>(string email, string name, string subject, bool sendBccCopy,
+            string emailPath, T mailBody) where T : MailModelBase
         {
             var mailMessage = new MimeMessage();
+            var bodyBuilder = new BodyBuilder();
+            
+            var pathImage = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Views\\Emails\\logo_ligismall.jpg");
+            var image = await bodyBuilder.LinkedResources.AddAsync(pathImage);
+            image.ContentId = "vertical_logo";
+            
+            var emailText = await _emailEngine.RenderViewToStringAsync(emailPath, mailBody);
+
             mailMessage.From.Add(new MailboxAddress("Fading Flame", "info@fading-flame.com"));
             if (_isTestMode)
             {
@@ -73,11 +83,8 @@ namespace IdentityServer.Quickstart.Mail
             }
 
             mailMessage.Subject = subject;
-            var bodyBuilder = new BodyBuilder
-            {
-                HtmlBody = emailText
-            };
-
+            bodyBuilder.HtmlBody = emailText;
+            
             mailMessage.Body = bodyBuilder.ToMessageBody();
 
             using var smtpClient = new SmtpClient();
