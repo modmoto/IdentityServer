@@ -61,7 +61,7 @@ namespace IdentityServer.Quickstart.Mail
             var mailMessage = new MimeMessage();
             var bodyBuilder = new BodyBuilder();
             
-            var pathImage = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Views\\Emails\\logo_ligismall.jpg");
+            var pathImage = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Views/Emails/logo_ligismall.jpg");
             var image = await bodyBuilder.LinkedResources.AddAsync(pathImage);
             image.ContentId = "vertical_logo";
             
