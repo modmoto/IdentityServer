@@ -21,6 +21,13 @@ namespace IdentityServer.Quickstart.Home
             _interaction = interaction;
             _environment = environment;
         }
+        
+        // [HttpGet("mails")]
+        // public async Task<IActionResult> SendMails([FromServices] IMailService mailService)
+        // {
+        //     await mailService.SendMailToAllUsers("14.10.", "17.10.");
+        //     return Ok();
+        // }
 
         public IActionResult Index()
         {

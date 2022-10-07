@@ -1,12 +1,13 @@
 ﻿using System;
 using System.IO;
-using System.Reflection;
+using System.Linq;
 using System.Threading.Tasks;
+using AspNetCore.Identity.Mongo.Model;
 using IdentityServer.Quickstart.Account;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
 using MimeKit;
-using MimeKit.Utils;
+using MongoDB.Driver;
 
 namespace IdentityServer.Quickstart.Mail
 {
@@ -14,19 +15,21 @@ namespace IdentityServer.Quickstart.Mail
     {
         Task<MailState> SendMail(string email, NewAccountMail mailBody);
         Task<MailState> SendMail(string email, ResetPasswordMailModel mailBody);
+        Task<MailState> SendNewSeasonMail(string listDeadline, string seasonStart);
     }
 
     public class MailService : IMailService
     {
         private readonly IMailRenderer _emailEngine;
         private readonly ILogger _logger;
+        private readonly IMongoCollection<MongoUser> _userStore;
         private readonly bool _isTestMode = string.Equals(Environment.GetEnvironmentVariable("IS_TEST_MODE"), "true", StringComparison.OrdinalIgnoreCase);
 
-
-        public MailService(IMailRenderer emailEngine, ILogger<IMailService> logger)
+        public MailService(IMailRenderer emailEngine, ILogger<IMailService> logger, IMongoCollection<MongoUser> userStore)
         {
             _emailEngine = emailEngine;
             _logger = logger;
+            _userStore = userStore;
         }
         
         public async Task<MailState> SendMail(string email, NewAccountMail mailBody)
@@ -46,13 +49,37 @@ namespace IdentityServer.Quickstart.Mail
         {
             try
             {
-                return await SendMailForReal(email, email, mailBody.Subject, true, "/Views/Emails/ResetPasswordAccountMail.cshtml", mailBody);
+                return await SendMailForReal(email, email, mailBody.Subject, false, "/Views/Emails/ResetPasswordAccountMail.cshtml", mailBody);
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "Mail sending failed");
                 return MailState.Error;
             }
+        }
+
+        public async Task<MailState> SendNewSeasonMail(string listDeadline, string seasonStart)
+        {
+                var allUsers = _userStore.Find(user => true).ToListAsync().Result.Skip(118).ToList();
+                for (var index = 0; index < allUsers.Count; index++)
+                {
+                    var user = allUsers[index];
+                    var userName = user.Claims.FirstOrDefault(c => c.ClaimType == "given_name")?.ClaimValue;
+                    var newSeasonModel = new NewSeasonModel(listDeadline, seasonStart, userName);
+                    try
+                    {
+                        await SendMailForReal(user.Email, userName, newSeasonModel.Subject, true, "/Views/Emails/NewSeasonMail.cshtml", newSeasonModel);
+                        _logger.LogInformation($"Mail {index + 1}/{allUsers.Count} sent to: {user.Email}");
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError($"Mail {index + 1}/{allUsers.Count} failed to: {user.Email}", e.Message);
+                        return MailState.Error;
+                    }
+                }
+
+                return MailState.Sent;
+            
         }
 
         private async Task<MailState> SendMailForReal<T>(string email, string name, string subject, bool sendBccCopy,
