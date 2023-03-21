@@ -76,6 +76,10 @@ namespace IdentityServer
             {
                 endpoints.MapDefaultControllerRoute();
             });
+
+            // var mailService = app.ApplicationServices.GetRequiredService<IMailService>();
+            // var sendNewSeasonMail = mailService.SendNewSeasonMail("26.03.", "27.03.");
+            // sendNewSeasonMail.Wait();
         }
     }
 }
