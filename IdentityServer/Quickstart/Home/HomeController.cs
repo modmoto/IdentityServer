@@ -25,7 +25,7 @@ namespace IdentityServer.Quickstart.Home
         // [HttpGet("mails")]
         // public async Task<IActionResult> SendMails([FromServices] IMailService mailService)
         // {
-        //     await mailService.SendMailToAllUsers("14.10.", "17.10.");
+        //     await mailService.SendNewSeasonMail("26.3.", "27.3.");
         //     return Ok();
         // }
 
