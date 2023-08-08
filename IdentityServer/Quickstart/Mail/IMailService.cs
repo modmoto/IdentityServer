@@ -15,7 +15,7 @@ namespace IdentityServer.Quickstart.Mail
     {
         Task<MailState> SendMail(string email, NewAccountMail mailBody);
         Task<MailState> SendMail(string email, ResetPasswordMailModel mailBody);
-        Task<MailState> SendNewSeasonMail(string listDeadline, string seasonStart);
+        Task SendNewSeasonMails(string listDeadline, string seasonStart);
     }
 
     public class MailService : IMailService
@@ -58,7 +58,7 @@ namespace IdentityServer.Quickstart.Mail
             }
         }
 
-        public async Task<MailState> SendNewSeasonMail(string listDeadline, string seasonStart)
+        public async Task SendNewSeasonMails(string listDeadline, string seasonStart)
         {
             var allUsers = await _userStore.Find(user => true).ToListAsync();
             for (var index = 0; index < allUsers.Count; index++)
@@ -74,11 +74,8 @@ namespace IdentityServer.Quickstart.Mail
                 catch (Exception e)
                 {
                     _logger.LogError($"Mail {index + 1}/{allUsers.Count} failed to: {user.Email}", e.Message);
-                    return MailState.Error;
                 }
             }
-
-            return MailState.Sent;
         }
 
         private async Task<MailState> SendMailForReal<T>(string email, string name, string subject, bool sendBccCopy,
