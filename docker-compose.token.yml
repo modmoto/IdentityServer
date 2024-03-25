@@ -12,6 +12,7 @@ services:
       - IDENTITY_BASE_URI=${IDENTITY_BASE_URI}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - IS_TEST_MODE=${IS_TEST_MODE}
+      - ASPNETCORE_HTTP_PORTS=80
   
   mongo-db:
     image: mongo

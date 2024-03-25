@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace IdentityServer.Quickstart.Account
 {
@@ -520,8 +521,10 @@ namespace IdentityServer.Quickstart.Account
                 var idp = User.FindFirst(JwtClaimTypes.IdentityProvider)?.Value;
                 if (idp != null && idp != IdentityServerConstants.LocalIdentityProvider)
                 {
-                    var providerSupportsSignout = await HttpContext.GetSchemeSupportsSignOutAsync(idp);
-                    if (providerSupportsSignout)
+                    // was earlier GetSchemeSupportsSignOutAsync
+                    var provider = HttpContext.RequestServices.GetRequiredService<IAuthenticationHandlerProvider>();
+                    var handler = await provider.GetHandlerAsync(HttpContext, idp);
+                    if (handler is IAuthenticationSignOutHandler)
                     {
                         if (vm.LogoutId == null)
                         {
