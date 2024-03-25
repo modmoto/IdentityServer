@@ -15,7 +15,7 @@ services:
       - ASPNETCORE_HTTP_PORTS=80
   
   mongo-db:
-    image: mongo
+    image: mongo:6
     container_name: mongo-db-identity-server-${CONTAINER_SUFFIX}
     restart: unless-stopped
     ports:
